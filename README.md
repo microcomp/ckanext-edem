@@ -1,0 +1,1 @@
+ckanext-edem Manual
