@@ -4,7 +4,9 @@ import ckan.model as model
 import ckan.new_authz as new_authz
 import ckan.logic as logic
 import ckan.logic.auth as logic_auth
-from ckan.common import _
+#from ckan.common import _
+from ckan.plugins.toolkit import _
+from ckan.plugins.toolkit import ungettext
 
 
 def create_group_if_not_exists(data_dict):

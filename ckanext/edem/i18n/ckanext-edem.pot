@@ -1,0 +1,43 @@
+# Translations template for ckanext-edem.
+# Copyright (C) 2014 ORGANIZATION
+# This file is distributed under the same license as the ckanext-edem project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2014.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ckanext-edem 0.1\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2014-12-23 14:07+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 0.9.6\n"
+
+#: ckanext/edem/plugin.py:91
+#, python-format
+msgid "User %s not authorized to create packages"
+msgstr ""
+
+#: ckanext/edem/plugin.py:95 ckanext/edem/plugin.py:141
+#, python-format
+msgid "User %s not authorized to edit these groups"
+msgstr ""
+
+#: ckanext/edem/plugin.py:102
+#, python-format
+msgid "User %s not authorized to add dataset to this organization"
+msgstr ""
+
+#: ckanext/edem/plugin.py:135
+#, python-format
+msgid "User %s not authorized to edit package %s"
+msgstr ""
+
+#: ckanext/edem/plugin.py:182
+msgid "Group was not found."
+msgstr ""
+
