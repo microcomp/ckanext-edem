@@ -22,9 +22,19 @@ setup(
     install_requires=[
         # -*- Extra requirements: -*-
     ],
-    entry_points='''
-        [ckan.plugins]
-        # Add plugins here, e.g.
-        edem =ckanext.edem.plugin:EdemCustomPlugin
-    ''',
+    #entry_points='''
+    #    [ckan.plugins]
+    #    # Add plugins here, e.g.
+    #    edem =ckanext.edem.plugin:EdemCustomPlugin
+    #''',
+    entry_points={
+        'babel.extractors': [
+                    'ckan = ckan.lib.extract:extract_ckan',
+                    ],
+        'ckan.plugins' : [
+                    'edem =ckanext.edem.plugin:EdemCustomPlugin',
+                    ]
+        }
+
+    
 )
