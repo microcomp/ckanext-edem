@@ -4,9 +4,9 @@ import ckan.model as model
 import ckan.new_authz as new_authz
 import ckan.logic as logic
 import ckan.logic.auth as logic_auth
+import ckan.lib.navl.dictization_functions as df
 #from ckan.common import _
-from ckan.plugins.toolkit import _
-from ckan.plugins.toolkit import ungettext
+_ = toolkit._
 
 
 def create_group_if_not_exists(data_dict):
@@ -50,7 +50,10 @@ def user_custom_roles(context, data_dict=None):
     # Get the user name of the logged-in user.
     user_name = context['user']
     convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
-    user_id = convert_user_name_or_id_to_id(user_name, context)
+    try:
+        user_id = convert_user_name_or_id_to_id(user_name, context)
+    except df.Invalid:
+        return []
     possible_roles = ['moderator','app-admin','datovy-kurator']
     current_roles = []
     # Get a list of the members of the 'curators' group.
@@ -244,6 +247,35 @@ def auth_organization_create(context, data_dict=None):
         return {'success': False,
                 'msg': 'Only spravcovia are allowed to create organization'}
 
+@logic.auth_allow_anonymous_access        
+def auth_app_create(context, data_dict=None):
+    # Get the user name of the logged-in user.
+    user_name = context['user']
+    # We have the logged-in user's user name, get their user id.
+    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
+    try:
+        convert_user_name_or_id_to_id(user_name, context)
+    except df.Invalid:
+        return {'success': False,
+                'msg': _('Only authenticated users are allowed to create applications')}
+    return {'success': True}
+
+@logic.auth_allow_anonymous_access
+def auth_app_edit(context, data_dict=None):
+    user = context['user']
+    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
+    try:
+        user_id = convert_user_name_or_id_to_id(user, context)
+    except df.Invalid:
+        return {'success': False,
+                'msg': _('Only application owner and application administrators are allowed to edit applications')}
+    if data_dict['owner_id']==user_id or user_has_role(user_id, 'app-admin'):
+        return {'success': True}
+    
+    return {'success': False,
+                'msg': _('Only application owner and application administrators are allowed to edit applications')}
+
+
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
 
@@ -252,6 +284,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
         return {'group_create' : auth_group_create,
                 'organization_create' : auth_organization_create,
                 'package_create' : package_create,
-                'package_update' : package_update
+                'package_update' : package_update,
+                'app_create' : auth_app_create,
+                'app_edit' : auth_app_edit
                 }
             
