@@ -5,8 +5,67 @@ import ckan.new_authz as new_authz
 import ckan.logic as logic
 import ckan.logic.auth as logic_auth
 import ckan.lib.navl.dictization_functions as df
+import ckan.lib.dictization.model_dictize as model_dictize
 #from ckan.common import _
 _ = toolkit._
+
+def organization_list_for_user(context, data_dict):
+    '''Return the organizations that the user has a given permission for.
+    By default this returns the list of organizations that the currently
+    authorized user can edit, i.e. the list of organizations that the user is an
+    admin of.
+    Specifically it returns the list of organizations that the currently
+    authorized user has a given permission (for example: "edit_group") against.
+    When a user becomes a member of an organization in CKAN they're given a
+    "capacity" (sometimes called a "role"), for example "member", "editor" or
+    "admin".
+    Each of these roles has certain permissions associated with it. For example
+    the admin role has the "admin" permission (which means they have permission
+    to do anything). The editor role has permissions like "create_dataset",
+    "update_dataset" and "delete_dataset". The member role has the "read"
+    permission.
+    This function returns the list of organizations that the authorized user has
+    a given permission for. For example the list of organizations that the user
+    is an admin of, or the list of organizations that the user can create
+    datasets in.
+    :param permission: the permission the user has against the
+    returned organizations, for example ``"read"`` or ``"create_dataset"``
+    (optional, default: ``"edit_group"``)
+    :type permission: string
+    :returns: list of organizations that the user has the given permission for
+    :rtype: list of dicts
+    '''
+    model = context['model']
+    user = context['user']
+    logic.check_access('organization_list_for_user', context, data_dict)
+    sysadmin = new_authz.is_sysadmin(user)
+    orgs_q = model.Session.query(model.Group) \
+    .filter(model.Group.is_organization == True) \
+    .filter(model.Group.state == 'active')
+    user_roles = user_custom_roles(context, data_dict)
+    if not sysadmin and not 'datovy-kurator' in user_roles:
+        # for non-Sysadmins check they have the required permission
+        permission = data_dict.get('permission', 'edit_group')
+        roles = new_authz.get_roles_with_permission(permission)
+        if not roles:
+            return []
+        user_id = new_authz.get_user_id_for_username(user, allow_none=True)
+        if not user_id:
+            return []
+        q = model.Session.query(model.Member) \
+        .filter(model.Member.table_name == 'user') \
+        .filter(model.Member.capacity.in_(roles)) \
+        .filter(model.Member.table_id == user_id) \
+        .filter(model.Member.state == 'active')
+        group_ids = []
+        for row in q.all():
+            group_ids.append(row.group_id)
+        if not group_ids:
+            return []
+        orgs_q = orgs_q.filter(model.Group.id.in_(group_ids))
+    orgs_list = model_dictize.group_list_dictize(orgs_q.all(), context)
+    return orgs_list
+
 
 
 def create_group_if_not_exists(data_dict):
@@ -278,7 +337,11 @@ def auth_app_edit(context, data_dict=None):
 
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
-
+    plugins.implements(plugins.IActions)
+    
+    def get_actions(self):
+        return {'organization_list_for_user' : organization_list_for_user,
+                'user_custom_roles' : user_custom_roles}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
