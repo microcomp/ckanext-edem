@@ -2,44 +2,44 @@
 # Copyright (C) 2014 ORGANIZATION
 # This file is distributed under the same license as the ckanext-edem
 # project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2014.
-#
+# 
+# Translators:
+# Dominik Kapisinsky <kapisinsky@microcomp.sk>, 2015
 msgid ""
 msgstr ""
-"Project-Id-Version: ckanext-edem 0.1\n"
+"Project-Id-Version: CKANEXT-EDEM\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2014-12-23 14:07+0100\n"
-"PO-Revision-Date: 2014-12-23 14:07+0100\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: sk <LL@li.org>\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)\n"
+"PO-Revision-Date: 2015-01-10 16:51+0000\n"
+"Last-Translator: Dominik Kapisinsky <kapisinsky@microcomp.sk>\n"
+"Language-Team: Slovak (http://www.transifex.com/projects/p/ckanext-edem/language/sk/)\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 0.9.6\n"
+"Language: sk\n"
+"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
 
 #: ckanext/edem/plugin.py:91
 #, python-format
 msgid "User %s not authorized to create packages"
-msgstr ""
+msgstr "Používateľ %s nemá oprávnenie vytvárať datasety"
 
 #: ckanext/edem/plugin.py:95 ckanext/edem/plugin.py:141
 #, python-format
 msgid "User %s not authorized to edit these groups"
-msgstr ""
+msgstr "Používateľ %s nemá oprávnenie upravovať tieto skupiny"
 
 #: ckanext/edem/plugin.py:102
 #, python-format
 msgid "User %s not authorized to add dataset to this organization"
-msgstr ""
+msgstr "Používateľ %s nemá oprávnenie pridávať datasety k tejto organizácií"
 
 #: ckanext/edem/plugin.py:135
 #, python-format
 msgid "User %s not authorized to edit package %s"
-msgstr ""
+msgstr "Používateľ %s nemá oprávnenie upravovať dataset %s"
 
 #: ckanext/edem/plugin.py:182
 msgid "Group was not found."
-msgstr ""
-
+msgstr "Skupiny sa nenašla."
