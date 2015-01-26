@@ -334,6 +334,20 @@ def auth_app_edit(context, data_dict=None):
     return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
 
+@logic.auth_allow_anonymous_access
+def auth_app_edit_all(context, data_dict=None):
+    user = context['user']
+    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
+    try:
+        user_id = convert_user_name_or_id_to_id(user, context)
+    except df.Invalid:
+        return {'success': False,
+                'msg': _('Only application owner and application administrators are allowed to edit applications')}
+    if user_has_role(user_id, 'app-admin'):
+        return {'success': True}
+    
+    return {'success': False,
+                'msg': _('Only application owner and application administrators are allowed to edit applications')}
 
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
@@ -349,6 +363,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'package_create' : package_create,
                 'package_update' : package_update,
                 'app_create' : auth_app_create,
-                'app_edit' : auth_app_edit
+                'app_edit' : auth_app_edit,
+                'app_editall' : auth_app_edit_all
                 }
             
