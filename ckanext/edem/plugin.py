@@ -6,8 +6,20 @@ import ckan.logic as logic
 import ckan.logic.auth as logic_auth
 import ckan.lib.navl.dictization_functions as df
 import ckan.lib.dictization.model_dictize as model_dictize
+import logging
+
+log = logging.getLogger(__name__)
 #from ckan.common import _
 _ = toolkit._
+
+class Roles(object):
+    ROLE_APP_ADMIN = 'app-admin'
+    ROLE_DATA_CURATOR = 'datovy-kurator'
+    ROLE_MODERATOR = 'moderator'
+    ROLE_POVINNA_OSOBA = 'povinna-osoba'
+
+def roles(context, data_dict):
+    return Roles
 
 def organization_list_for_user(context, data_dict):
     '''Return the organizations that the user has a given permission for.
@@ -43,7 +55,7 @@ def organization_list_for_user(context, data_dict):
     .filter(model.Group.is_organization == True) \
     .filter(model.Group.state == 'active')
     user_roles = user_custom_roles(context, data_dict)
-    if not sysadmin and not 'datovy-kurator' in user_roles:
+    if not sysadmin and not Roles.ROLE_DATA_CURATOR in user_roles:
         # for non-Sysadmins check they have the required permission
         permission = data_dict.get('permission', 'edit_group')
         roles = new_authz.get_roles_with_permission(permission)
@@ -66,44 +78,6 @@ def organization_list_for_user(context, data_dict):
     orgs_list = model_dictize.group_list_dictize(orgs_q.all(), context)
     return orgs_list
 
-
-
-def create_group_if_not_exists(data_dict):
-        group_name = data_dict['name']
-        group = model.Group.get(group_name)
-        
-        context = {'ignore_auth': True}
-        site_user = toolkit.get_action('get_site_user')(context, {})
-        c = toolkit.c
-
-        if not group:
-            context = {'user': site_user['name']}
-            group = toolkit.get_action('group_create')(context, data_dict)
-            group = model.Group.get(group_name)
-        
-        return group
-
-def add_user_to_group(group_id, user_id):
-    data_dict = {
-        'id': group_id,
-        'type': 'user',
-    }
-    context = {'ignore_auth': True}
-    members = toolkit.get_action('member_list')(context, data_dict)
-    members = [member[0] for member in members]
-    if user_id not in members:
-        # add membership
-        member_dict = {
-            'id': group_id,
-            'object': user_id,
-            'object_type': 'user',
-            'capacity': 'member',
-        }
-        member_create_context = {
-            'ignore_auth': True,
-        }
-        toolkit.get_action('member_create')(member_create_context, member_dict)
-
 def user_custom_roles(context, data_dict=None):
 
     # Get the user name of the logged-in user.
@@ -113,7 +87,7 @@ def user_custom_roles(context, data_dict=None):
         user_id = convert_user_name_or_id_to_id(user_name, context)
     except df.Invalid:
         return []
-    possible_roles = ['moderator','app-admin','datovy-kurator']
+    possible_roles = [Roles.ROLE_APP_ADMIN, Roles.ROLE_DATA_CURATOR, Roles.ROLE_MODERATOR]
     current_roles = []
     # Get a list of the members of the 'curators' group.
     for role in possible_roles:
@@ -122,18 +96,23 @@ def user_custom_roles(context, data_dict=None):
     return current_roles
 
 def user_has_role(user_id, role_name):
-    members = toolkit.get_action('member_list')(data_dict={'id': role_name, 'object_type': 'user'})
-    member_ids = [member_tuple[0] for member_tuple in members]
-    if user_id in member_ids:
-        return True
-    return False
+    try:
+        members = toolkit.get_action('member_list')(data_dict={'id': role_name, 'object_type': 'user'})
+        member_ids = [member_tuple[0] for member_tuple in members]
+        if user_id in member_ids:
+            return True
+        return False
+    except toolkit.ObjectNotFound as e:
+        log.exception(e)
+        return False
+        
     
     
 @logic.auth_allow_anonymous_access
 def package_create(context, data_dict=None):
     user = context['user']
     user_roles = user_custom_roles(context, data_dict)
-    if 'datovy-kurator' in user_roles:
+    if Roles.ROLE_DATA_CURATOR in user_roles:
         return {'success': True}
     
     if new_authz.auth_is_anon_user(context):
@@ -168,7 +147,7 @@ def package_create(context, data_dict=None):
 def package_update(context, data_dict):
     user = context.get('user')
     user_roles = user_custom_roles(context, data_dict)
-    if 'datovy-kurator' in user_roles:
+    if Roles.ROLE_DATA_CURATOR in user_roles:
         return {'success': True}
     package = logic_auth.get_package_object(context, data_dict)
 
@@ -328,7 +307,7 @@ def auth_app_edit(context, data_dict=None):
     except df.Invalid:
         return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
-    if data_dict['owner_id']==user_id or user_has_role(user_id, 'app-admin'):
+    if data_dict['owner_id']==user_id or user_has_role(user_id, Roles.ROLE_APP_ADMIN):
         return {'success': True}
     
     return {'success': False,
@@ -343,7 +322,7 @@ def auth_app_edit_all(context, data_dict=None):
     except df.Invalid:
         return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
-    if user_has_role(user_id, 'app-admin'):
+    if user_has_role(user_id, Roles.ROLE_APP_ADMIN):
         return {'success': True}
     
     return {'success': False,
@@ -355,7 +334,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
     
     def get_actions(self):
         return {'organization_list_for_user' : organization_list_for_user,
-                'user_custom_roles' : user_custom_roles}
+                'user_custom_roles' : user_custom_roles,
+                'enum_roles' : roles}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
