@@ -76,6 +76,7 @@ def organization_list_for_user(context, data_dict):
             return []
         orgs_q = orgs_q.filter(model.Group.id.in_(group_ids))
     orgs_list = model_dictize.group_list_dictize(orgs_q.all(), context)
+    log.info('available orgs : %s', orgs_list)
     return orgs_list
 
 def user_custom_roles(context, data_dict=None):
@@ -307,8 +308,12 @@ def auth_app_edit(context, data_dict=None):
     except df.Invalid:
         return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
-    if data_dict['owner_id']==user_id or user_has_role(user_id, Roles.ROLE_APP_ADMIN):
-        return {'success': True}
+    try:
+        if data_dict['owner_id']==user_id or user_has_role(user_id, Roles.ROLE_APP_ADMIN):
+            return {'success': True}
+    except TypeError:
+        if user_has_role(user_id, Roles.ROLE_APP_ADMIN):
+            return {'success': True}
     
     return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
