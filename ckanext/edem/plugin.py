@@ -311,7 +311,8 @@ def auth_app_edit(context, data_dict=None):
     try:
         if data_dict['owner_id']==user_id or user_has_role(user_id, Roles.ROLE_APP_ADMIN):
             return {'success': True}
-    except TypeError:
+    except TypeError as e:
+        log.exception(e)
         if user_has_role(user_id, Roles.ROLE_APP_ADMIN):
             return {'success': True}
     
