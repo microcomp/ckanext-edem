@@ -1,14 +1,14 @@
 # Translations template for ckanext-edem.
-# Copyright (C) 2014 ORGANIZATION
+# Copyright (C) 2015 ORGANIZATION
 # This file is distributed under the same license as the ckanext-edem project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2014.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2015.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: ckanext-edem 0.1\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2014-12-23 14:07+0100\n"
+"POT-Creation-Date: 2015-02-23 14:51+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,27 +17,50 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 0.9.6\n"
 
-#: ckanext/edem/plugin.py:91
+#: ckanext/edem/plugin.py:133
 #, python-format
 msgid "User %s not authorized to create packages"
 msgstr ""
 
-#: ckanext/edem/plugin.py:95 ckanext/edem/plugin.py:141
+#: ckanext/edem/plugin.py:137 ckanext/edem/plugin.py:183
 #, python-format
 msgid "User %s not authorized to edit these groups"
 msgstr ""
 
-#: ckanext/edem/plugin.py:102
+#: ckanext/edem/plugin.py:144
 #, python-format
 msgid "User %s not authorized to add dataset to this organization"
 msgstr ""
 
-#: ckanext/edem/plugin.py:135
+#: ckanext/edem/plugin.py:177
 #, python-format
 msgid "User %s not authorized to edit package %s"
 msgstr ""
 
-#: ckanext/edem/plugin.py:182
+#: ckanext/edem/plugin.py:224
 msgid "Group was not found."
+msgstr ""
+
+#: ckanext/edem/plugin.py:299
+msgid "Only authenticated users are allowed to create applications"
+msgstr ""
+
+#: ckanext/edem/plugin.py:310 ckanext/edem/plugin.py:320 ckanext/edem/plugin.py:330
+#: ckanext/edem/plugin.py:335
+msgid ""
+"Only application owner and application administrators are allowed to edit "
+"applications"
+msgstr ""
+
+#: ckanext/edem/plugin.py:342
+msgid "Only data curator is authorized to manage storage usage."
+msgstr ""
+
+#: ckanext/edem/plugin.py:349
+msgid "Only moderator is authorized to manage comments and blogs."
+msgstr ""
+
+#: ckanext/edem/plugin.py:356
+msgid "Only data curator is authorized to manage tags of datasets."
 msgstr ""
 
