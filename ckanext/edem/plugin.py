@@ -334,6 +334,20 @@ def auth_app_edit_all(context, data_dict=None):
     return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
 
+@logic.auth_allow_anonymous_access
+def auth_storage_usage(context, data_dict=None):
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.ROLE_DATA_CURATOR in user_roles:
+        return {'success': True}
+    return {'success': False, 'msg': _('Only data curator is authorized to manage storage usage.')}
+
+@logic.auth_allow_anonymous_access
+def auth_comments_administration(context, data_dict=None):
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.ROLE_MODERATOR in user_roles:
+        return {'success': True}
+    return {'success': False, 'msg': _('Only moderator is authorized to manage comments and blogs.')}
+
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
@@ -350,6 +364,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'package_update' : package_update,
                 'app_create' : auth_app_create,
                 'app_edit' : auth_app_edit,
-                'app_editall' : auth_app_edit_all
+                'app_editall' : auth_app_edit_all,
+                'storage_usage' : auth_storage_usage,
+                'commets_admin' : auth_comments_administration
                 }
             
