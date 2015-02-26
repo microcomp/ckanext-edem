@@ -355,6 +355,13 @@ def auth_tags_administration(context, data_dict=None):
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to manage tags of datasets.')}
 
+def auth_add_dataset_rating(context, data_dict=None):
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.ROLE_DATA_CURATOR in user_roles:
+        return {'success': True}
+    return {'success': False, 'msg': _('Only data curator is authorized to edit rating of datasets.')}
+
+
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
@@ -374,6 +381,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'app_editall' : auth_app_edit_all,
                 'storage_usage' : auth_storage_usage,
                 'commets_admin' : auth_comments_administration,
-                'tags_admin' : auth_tags_administration
+                'tags_admin' : auth_tags_administration,
+                'add_dataset_rating' : auth_add_dataset_rating
                 }
             
