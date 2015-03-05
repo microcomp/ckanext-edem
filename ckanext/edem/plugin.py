@@ -17,6 +17,7 @@ class Roles(object):
     ROLE_DATA_CURATOR = 'datovy-kurator'
     ROLE_MODERATOR = 'moderator'
     ROLE_POVINNA_OSOBA = 'povinna-osoba'
+    ROLE_SPRAVCA_TRANSFORMACII = 'spravca-transformacii'
 
 def roles(context, data_dict):
     return Roles
@@ -88,7 +89,10 @@ def user_custom_roles(context, data_dict=None):
         user_id = convert_user_name_or_id_to_id(user_name, context)
     except df.Invalid:
         return []
-    possible_roles = [Roles.ROLE_APP_ADMIN, Roles.ROLE_DATA_CURATOR, Roles.ROLE_MODERATOR]
+    possible_roles = []
+    for attr in dir(Roles):
+        if attr.startswith('ROLE_'):
+            possible_roles.append(getattr(Roles, attr))
     current_roles = []
     # Get a list of the members of the 'curators' group.
     for role in possible_roles:
@@ -361,7 +365,12 @@ def auth_add_dataset_rating(context, data_dict=None):
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to edit rating of datasets.')}
 
-
+def auth_uv_usage(context, data_dict=None):
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.ROLE_SPRAVCA_TRANSFORMACII in user_roles or package_create(context, data_dict)['success']:
+        return {'success': True}
+    return {'success': False, 'msg': _('You do not have permission to use Unified Views.')}
+        
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
@@ -382,6 +391,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'storage_usage' : auth_storage_usage,
                 'commets_admin' : auth_comments_administration,
                 'tags_admin' : auth_tags_administration,
-                'add_dataset_rating' : auth_add_dataset_rating
+                'add_dataset_rating' : auth_add_dataset_rating,
+                'uv_usage' : auth_uv_usage
                 }
             
