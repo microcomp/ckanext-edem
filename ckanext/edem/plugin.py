@@ -109,6 +109,7 @@ def user_has_role(user_id, role_name):
         return False
     except toolkit.ObjectNotFound as e:
         log.exception(e)
+        log.warn(role_name)
         return False
         
     
