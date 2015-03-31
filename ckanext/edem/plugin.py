@@ -360,17 +360,26 @@ def auth_tags_administration(context, data_dict=None):
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to manage tags of datasets.')}
 
+@logic.auth_allow_anonymous_access
 def auth_add_dataset_rating(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
     if Roles.ROLE_DATA_CURATOR in user_roles:
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to edit rating of datasets.')}
 
+@logic.auth_allow_anonymous_access
 def auth_uv_usage(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
     if Roles.ROLE_SPRAVCA_TRANSFORMACII in user_roles or package_create(context, data_dict)['success']:
         return {'success': True}
     return {'success': False, 'msg': _('You do not have permission to use Unified Views.')}
+
+@logic.auth_allow_anonymous_access
+def auth_sla_management(context, data_dict=None):
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.ROLE_DATA_CURATOR in user_roles:
+        return {'success': True}
+    return {'success': False, 'msg': _('Only data curator is authorized to manage SLA.')}
         
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
@@ -393,6 +402,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'commets_admin' : auth_comments_administration,
                 'tags_admin' : auth_tags_administration,
                 'add_dataset_rating' : auth_add_dataset_rating,
-                'uv_usage' : auth_uv_usage
+                'uv_usage' : auth_uv_usage,
+                'sla_management' : auth_sla_management
                 }
             
