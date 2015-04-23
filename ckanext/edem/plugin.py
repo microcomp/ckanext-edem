@@ -7,6 +7,8 @@ import ckan.logic.auth as logic_auth
 import ckan.lib.navl.dictization_functions as df
 import ckan.lib.dictization.model_dictize as model_dictize
 import logging
+from ckan.logic.auth import (get_package_object, get_group_object,
+                            get_resource_object, get_related_object)
 
 log = logging.getLogger(__name__)
 #from ckan.common import _
@@ -108,12 +110,68 @@ def user_has_role(user_id, role_name):
             return True
         return False
     except toolkit.ObjectNotFound as e:
-        log.exception(e)
-        log.warn(role_name)
+        log.warn('Group %s not found!', role_name)
         return False
         
+def resource_show(context, data_dict):
+    model = context['model']
+    user = context.get('user')
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.ROLE_DATA_CURATOR in user_roles:
+        return {'success': True}
     
-    
+    resource = get_resource_object(context, data_dict)
+        
+    # check authentication against package
+    query = model.Session.query(model.Package)\
+        .join(model.ResourceGroup)\
+        .join(model.Resource)\
+        .filter(model.ResourceGroup.id == resource.resource_group_id)
+    pkg = query.first()
+    if not pkg:
+        raise logic.NotFound(_('No package found for this resource, cannot check auth.'))
+
+    pkg_dict = {'id': pkg.id}
+    authorized = package_show(context, pkg_dict).get('success')
+
+    if not authorized:
+        return {'success': False, 'msg': _('User %s not authorized to read resource %s') % (user, resource.id)}
+    else:
+        #check resource status, if private just org members may see it
+        status = resource.extras.get('status', None)
+        if not status or status == 'private':
+            authorized_read = package_update(context, pkg_dict).get('success')
+            if not authorized_read:
+                return {'success': False, 'msg': _('User %s not authorized to read resource %s') % (user, resource.id)}
+        return {'success': True}
+
+@logic.auth_allow_anonymous_access
+def package_show(context, data_dict):
+    user = context.get('user')
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.ROLE_DATA_CURATOR in user_roles:
+        return {'success': True}
+    package = get_package_object(context, data_dict)
+    # draft state indicates package is still in the creation process
+    # so we need to check we have creation rights.
+    if package.state.startswith('draft'):
+        auth = new_authz.is_authorized('package_update',
+                                       context, data_dict)
+        authorized = auth.get('success')
+    elif package.owner_org is None and package.state == 'active':
+        return {'success': True}
+    else:
+        # anyone can see a public package
+        if not package.private and package.state == 'active':
+            return {'success': True}
+        authorized = new_authz.has_user_permission_for_group_or_org(
+            package.owner_org, user, 'read')
+    if not authorized:
+        return {'success': False, 'msg': _('User %s not authorized to read package %s') % (user, package.id)}
+    else:
+        return {'success': True}
+
+
 @logic.auth_allow_anonymous_access
 def package_create(context, data_dict=None):
     user = context['user']
@@ -395,6 +453,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'organization_create' : auth_organization_create,
                 'package_create' : package_create,
                 'package_update' : package_update,
+                'package_show' : package_show,
+                'resource_show' : resource_show,
                 'app_create' : auth_app_create,
                 'app_edit' : auth_app_edit,
                 'app_editall' : auth_app_edit_all,
