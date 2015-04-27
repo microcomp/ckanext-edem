@@ -112,7 +112,8 @@ def user_has_role(user_id, role_name):
     except toolkit.ObjectNotFound as e:
         log.warn('Group %s not found!', role_name)
         return False
-        
+
+@logic.auth_allow_anonymous_access        
 def resource_show(context, data_dict):
     model = context['model']
     user = context.get('user')
