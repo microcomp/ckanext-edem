@@ -1,0 +1,8 @@
+{% ckan_extends %}
+
+{% block content_action %}
+  {{ super() }}
+  {% if h.check_access('upvs_user_update', user) %}
+  	<a href="{{h.get_user_update_url()}}" target="_blank" class="btn" alt="Profile update"><i class="icon-wrench"></i> {{_('Manage')}} </a>
+  {% endif %}
+{% endblock %}

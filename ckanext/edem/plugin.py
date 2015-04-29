@@ -9,6 +9,7 @@ import ckan.lib.dictization.model_dictize as model_dictize
 import logging
 from ckan.logic.auth import (get_package_object, get_group_object,
                             get_resource_object, get_related_object)
+from pylons import config
 
 log = logging.getLogger(__name__)
 #from ckan.common import _
@@ -439,10 +440,21 @@ def auth_sla_management(context, data_dict=None):
     if Roles.ROLE_DATA_CURATOR in user_roles:
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to manage SLA.')}
+
+def user_update_url():
+    return config.get('ckan.profile_update_url', None)
         
 class EdemCustomPlugin(plugins.SingletonPlugin):
+    plugins.implements(plugins.IConfigurer, inherit=False)
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
+    plugins.implements(plugins.ITemplateHelpers)
+    
+    def update_config(self, config):
+        toolkit.add_template_directory(config, 'templates')
+    
+    def get_helpers(self):
+        return {'get_user_update_url' : user_update_url}
     
     def get_actions(self):
         return {'organization_list_for_user' : organization_list_for_user,
