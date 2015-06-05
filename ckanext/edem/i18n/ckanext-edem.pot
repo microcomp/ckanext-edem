@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ckanext-edem 0.1\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-02-23 14:51+0100\n"
+"POT-Creation-Date: 2015-05-28 10:00+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,50 +17,121 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 0.9.6\n"
 
-#: ckanext/edem/plugin.py:133
+#: ckanext/edem/plugin.py:126
+msgid "No package found for this resource, cannot check auth."
+msgstr ""
+
+#: ckanext/edem/plugin.py:132 ckanext/edem/plugin.py:139
+#, python-format
+msgid "User %s not authorized to read resource %s"
+msgstr ""
+
+#: ckanext/edem/plugin.py:164
+#, python-format
+msgid "User %s not authorized to read package %s"
+msgstr ""
+
+#: ckanext/edem/plugin.py:190
 #, python-format
 msgid "User %s not authorized to create packages"
 msgstr ""
 
-#: ckanext/edem/plugin.py:137 ckanext/edem/plugin.py:183
+#: ckanext/edem/plugin.py:194 ckanext/edem/plugin.py:240
 #, python-format
 msgid "User %s not authorized to edit these groups"
 msgstr ""
 
-#: ckanext/edem/plugin.py:144
+#: ckanext/edem/plugin.py:201
 #, python-format
 msgid "User %s not authorized to add dataset to this organization"
 msgstr ""
 
-#: ckanext/edem/plugin.py:177
+#: ckanext/edem/plugin.py:234
 #, python-format
 msgid "User %s not authorized to edit package %s"
 msgstr ""
 
-#: ckanext/edem/plugin.py:224
+#: ckanext/edem/plugin.py:281
 msgid "Group was not found."
 msgstr ""
 
-#: ckanext/edem/plugin.py:299
+#: ckanext/edem/plugin.py:356
 msgid "Only authenticated users are allowed to create applications"
 msgstr ""
 
-#: ckanext/edem/plugin.py:310 ckanext/edem/plugin.py:320 ckanext/edem/plugin.py:330
-#: ckanext/edem/plugin.py:335
+#: ckanext/edem/plugin.py:367 ckanext/edem/plugin.py:377 ckanext/edem/plugin.py:387
+#: ckanext/edem/plugin.py:392
 msgid ""
 "Only application owner and application administrators are allowed to edit "
 "applications"
 msgstr ""
 
-#: ckanext/edem/plugin.py:342
+#: ckanext/edem/plugin.py:399
 msgid "Only data curator is authorized to manage storage usage."
 msgstr ""
 
-#: ckanext/edem/plugin.py:349
+#: ckanext/edem/plugin.py:406
 msgid "Only moderator is authorized to manage comments and blogs."
 msgstr ""
 
-#: ckanext/edem/plugin.py:356
+#: ckanext/edem/plugin.py:413
 msgid "Only data curator is authorized to manage tags of datasets."
+msgstr ""
+
+#: ckanext/edem/plugin.py:420
+msgid "Only data curator is authorized to edit rating of datasets."
+msgstr ""
+
+#: ckanext/edem/plugin.py:427
+msgid "You do not have permission to use Unified Views."
+msgstr ""
+
+#: ckanext/edem/plugin.py:434
+msgid "Only data curator is authorized to manage SLA."
+msgstr ""
+
+#: ckanext/edem/logic/actions.py:177
+#, python-format
+msgid "REST API: Create object %s"
+msgstr ""
+
+#: ckanext/edem/logic/actions.py:254
+msgid "Package was not found."
+msgstr ""
+
+#: ckanext/edem/logic/actions.py:296
+#, python-format
+msgid "REST API: Update object %s"
+msgstr ""
+
+#: ckanext/edem/logic/actions.py:446 ckanext/edem/logic/actions.py:459
+msgid "Resource was not found."
+msgstr ""
+
+#: ckanext/edem/templates/header.html:6
+msgid "Sysadmin settings"
+msgstr ""
+
+#: ckanext/edem/templates/header.html:12
+msgid "View profile"
+msgstr ""
+
+#: ckanext/edem/templates/header.html:24
+#, python-format
+msgid "Dashboard (%(num)d new item)"
+msgid_plural "Dashboard (%(num)d new items)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ckanext/edem/templates/header.html:33 ckanext/edem/templates/header.html:35
+msgid "Edit settings"
+msgstr ""
+
+#: ckanext/edem/templates/header.html:43
+msgid "Log out"
+msgstr ""
+
+#: ckanext/edem/templates/user/read_base.html:6
+msgid "Manage"
 msgstr ""
 
