@@ -32,6 +32,7 @@ class Roles(object):
 def roles(context, data_dict):
     return Roles
 
+@logic.side_effect_free
 def organization_list_for_user(context, data_dict):
     '''Return the organizations that the user has a given permission for.
     By default this returns the list of organizations that the currently
@@ -91,20 +92,20 @@ def organization_list_for_user(context, data_dict):
     return orgs_list
 
 def user_custom_roles(context, data_dict=None):
-    # Get the user name of the logged-in user.
-    user_name = context['user']
-    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
     try:
-        convert_user_name_or_id_to_id(user_name, context)
         return session.get('ckanext-cas-roles', [])
-    except df.Invalid:
+    except TypeError:
         return []
+        
 
 def user_has_role(user_id, role_name):
-    roles = session.get('ckanext-cas-roles', [])
-    if role_name in roles:
-        return True
-    return False
+    try:
+        roles = session.get('ckanext-cas-roles', [])
+        if role_name in roles:
+            return True
+        return False
+    except TypeError:
+        return False
 
 @logic.auth_allow_anonymous_access        
 def resource_show(context, data_dict):
@@ -433,6 +434,42 @@ def auth_sla_management(context, data_dict=None):
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to manage SLA.')}
 
+@logic.auth_allow_anonymous_access
+def is_data_curator(context, data_dict=None):
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.MOD_R_DATA in user_roles:
+        return {'success': True}
+    return {'success': False, 'msg': _('Current user does not have role data curator.')}
+
+def package_delete(context, data_dict):
+    # Defer auhtorization for package_delete to package_update, as deletions
+    # are essentially changing the state field
+    return package_update(context, data_dict)
+
+def resource_delete(context, data_dict):
+    model = context['model']
+    user = context.get('user')
+    resource = get_resource_object(context, data_dict)
+
+    # check authentication against package
+    query = model.Session.query(model.Package)\
+        .join(model.ResourceGroup)\
+        .join(model.Resource)\
+        .filter(model.ResourceGroup.id == resource.resource_group_id)
+    pkg = query.first()
+    if not pkg:
+        raise logic.NotFound(_('No package found for this resource, cannot check auth.'))
+
+    pkg_dict = {'id': pkg.id}
+    authorized = package_delete(context, pkg_dict).get('success')
+
+    if not authorized:
+        return {'success': False, 'msg': _('User %s not authorized to delete resource %s') % (user, resource.id)}
+    else:
+        return {'success': True}
+
+
+
 def user_update_url():
     return config.get('ckan.profile_update_url', None)
         
@@ -455,15 +492,18 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'package_create' : custom_action.package_create,
                 'package_update' : custom_action.package_update,
                 'resource_create' : custom_action.resource_create,
-                'resource_update' : custom_action.resource_update}
+                'resource_update' : custom_action.resource_update,
+                'probe' : custom_action.probe}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
                 'organization_create' : auth_organization_create,
                 'package_create' : package_create,
                 'package_update' : package_update,
+                'package_delete' : package_delete,
                 'package_show' : package_show,
                 'resource_show' : resource_show,
+                'resource_delete' : resource_delete,
                 'app_create' : auth_app_create,
                 'app_edit' : auth_app_edit,
                 'app_editall' : auth_app_edit_all,
@@ -472,6 +512,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'tags_admin' : auth_tags_administration,
                 'add_dataset_rating' : auth_add_dataset_rating,
                 'uv_usage' : auth_uv_usage,
-                'sla_management' : auth_sla_management
+                'sla_management' : auth_sla_management,
+                'is_data_curator' : is_data_curator
                 }
             
