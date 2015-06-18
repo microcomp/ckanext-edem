@@ -2,6 +2,7 @@ import logging
 import datetime
 from pylons import session
 from pylons import config
+import sqlalchemy as sa
 import ckan.lib.plugins as lib_plugins
 import ckan.logic as logic
 import ckan.lib.navl.dictization_functions
@@ -535,3 +536,15 @@ def user_activity_list(context, data_dict):
     log.info('user activity list: %s', res)
     return res 
 
+@logic.side_effect_free
+def probe(context, data_dict):
+    ''''''
+    sql = '''
+         SELECT 1;
+    '''
+    conn = model.Session.connection()
+    try:
+        result = conn.execute(sql)
+    except sa.exc.OperationalError:
+        return 'ERROR'
+    return 'FUNGUJE'
