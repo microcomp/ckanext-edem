@@ -293,58 +293,22 @@ def _check_group_auth(context, data_dict):
 
     return True
 
+def _no_permissions(context, msg):
+    user = context['user']
+    return {'success': False, 'msg': msg.format(user=user)}
 
-def auth_group_create(context, data_dict=None):
-
-    # Get the user name of the logged-in user.
-    user_name = context['user']
-
-    # Get a list of the members of the 'curators' group.
-    members = toolkit.get_action('member_list')(
-        data_dict={'id': 'spravcovia', 'object_type': 'user'})
-
-    # 'members' is a list of (user_id, object_type, capacity) tuples, we're
-    # only interested in the user_ids.
-    member_ids = [member_tuple[0] for member_tuple in members]
-
-    # We have the logged-in user's user name, get their user id.
-    convert_user_name_or_id_to_id = toolkit.get_converter(
-        'convert_user_name_or_id_to_id')
-    user_id = convert_user_name_or_id_to_id(user_name, context)
-
-    # Finally, we can test whether the user is a member of the curators group.
-    if user_id in member_ids:
-        return {'success': True}
-    else:
-        return {'success': False,
-                'msg': 'Only spravcovia are allowed to create groups'}
-        
+@logic.auth_allow_anonymous_access
 def auth_organization_create(context, data_dict=None):
+    msg = toolkit._('Organization can not be created.')
+    return _no_permissions(context, msg)
 
-    # Get the user name of the logged-in user.
-    user_name = context['user']
+@logic.auth_allow_anonymous_access
+def auth_group_create(context, data_dict=None):
+    msg = toolkit._('Group can not be created.')
+    return _no_permissions(context, msg)
 
-    # Get a list of the members of the 'curators' group.
-    members = toolkit.get_action('member_list')(
-        data_dict={'id': 'spravcovia', 'object_type': 'user'})
 
-    # 'members' is a list of (user_id, object_type, capacity) tuples, we're
-    # only interested in the user_ids.
-    member_ids = [member_tuple[0] for member_tuple in members]
-
-    # We have the logged-in user's user name, get their user id.
-    convert_user_name_or_id_to_id = toolkit.get_converter(
-        'convert_user_name_or_id_to_id')
-    user_id = convert_user_name_or_id_to_id(user_name, context)
-
-    # Finally, we can test whether the user is a member of the curators group.
-    if user_id in member_ids:
-        return {'success': True}
-    else:
-        return {'success': False,
-                'msg': 'Only spravcovia are allowed to create organization'}
-
-@logic.auth_allow_anonymous_access        
+@logic.auth_allow_anonymous_access
 def auth_app_create(context, data_dict=None):
     # Get the user name of the logged-in user.
     user_name = context['user']
