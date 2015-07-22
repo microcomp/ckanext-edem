@@ -7,24 +7,32 @@ import ckan.logic.auth as logic_auth
 import ckan.lib.navl.dictization_functions as df
 import ckan.lib.dictization.model_dictize as model_dictize
 import logging
+import logic.actions as custom_action
 from ckan.logic.auth import (get_package_object, get_group_object,
                             get_resource_object, get_related_object)
 from pylons import config
+from pylons import session
 
 log = logging.getLogger(__name__)
 #from ckan.common import _
 _ = toolkit._
 
 class Roles(object):
-    ROLE_APP_ADMIN = 'app-admin'
-    ROLE_DATA_CURATOR = 'datovy-kurator'
-    ROLE_MODERATOR = 'moderator'
-    ROLE_POVINNA_OSOBA = 'povinna-osoba'
-    ROLE_SPRAVCA_TRANSFORMACII = 'spravca-transformacii'
+    MOD_R_PO = 'MOD-R-PO'
+    MOD_R_DATA = 'MOD-R-DATA'
+    MOD_R_ADM = 'MOD-R-ADM'
+    MOD_R_ONTO = 'MOD-R-ONTO'
+    MOD_R_TRANSA = 'MOD-R-TRANSA'
+    MOD_R_MODER = 'MOD-R-MODER'
+    MOD_R_APP = 'MOD-R-APP'
+    MOD_R_PO_API = 'MOD-R-PO-API'
+    
+    
 
 def roles(context, data_dict):
     return Roles
 
+@logic.side_effect_free
 def organization_list_for_user(context, data_dict):
     '''Return the organizations that the user has a given permission for.
     By default this returns the list of organizations that the currently
@@ -59,7 +67,7 @@ def organization_list_for_user(context, data_dict):
     .filter(model.Group.is_organization == True) \
     .filter(model.Group.state == 'active')
     user_roles = user_custom_roles(context, data_dict)
-    if not sysadmin and not Roles.ROLE_DATA_CURATOR in user_roles:
+    if not sysadmin and not Roles.MOD_R_DATA in user_roles:
         # for non-Sysadmins check they have the required permission
         permission = data_dict.get('permission', 'edit_group')
         roles = new_authz.get_roles_with_permission(permission)
@@ -84,42 +92,28 @@ def organization_list_for_user(context, data_dict):
     return orgs_list
 
 def user_custom_roles(context, data_dict=None):
-
-    # Get the user name of the logged-in user.
-    user_name = context['user']
-    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
     try:
-        user_id = convert_user_name_or_id_to_id(user_name, context)
-    except df.Invalid:
+        return session.get('ckanext-cas-roles', [])
+    except TypeError:
         return []
-    possible_roles = []
-    for attr in dir(Roles):
-        if attr.startswith('ROLE_'):
-            possible_roles.append(getattr(Roles, attr))
-    current_roles = []
-    # Get a list of the members of the 'curators' group.
-    for role in possible_roles:
-        if user_has_role(user_id, role):
-            current_roles.append(role)
-    return current_roles
+        
 
 def user_has_role(user_id, role_name):
     try:
-        members = toolkit.get_action('member_list')(data_dict={'id': role_name, 'object_type': 'user'})
-        member_ids = [member_tuple[0] for member_tuple in members]
-        if user_id in member_ids:
+        roles = session.get('ckanext-cas-roles', [])
+        if role_name in roles:
             return True
         return False
-    except toolkit.ObjectNotFound as e:
-        log.warn('Group %s not found!', role_name)
+    except TypeError:
         return False
 
 @logic.auth_allow_anonymous_access        
 def resource_show(context, data_dict):
+    log.info('resource_show auth')
     model = context['model']
     user = context.get('user')
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     
     resource = get_resource_object(context, data_dict)
@@ -140,8 +134,7 @@ def resource_show(context, data_dict):
         return {'success': False, 'msg': _('User %s not authorized to read resource %s') % (user, resource.id)}
     else:
         #check resource status, if private just org members may see it
-        status = resource.extras.get('status', None)
-        if not status or status == 'private':
+        if not toolkit.get_action('is_resource_public')(context, resource.extras):
             authorized_read = package_update(context, pkg_dict).get('success')
             if not authorized_read:
                 return {'success': False, 'msg': _('User %s not authorized to read resource %s') % (user, resource.id)}
@@ -151,7 +144,7 @@ def resource_show(context, data_dict):
 def package_show(context, data_dict):
     user = context.get('user')
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     package = get_package_object(context, data_dict)
     # draft state indicates package is still in the creation process
@@ -178,7 +171,7 @@ def package_show(context, data_dict):
 def package_create(context, data_dict=None):
     user = context['user']
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     
     if new_authz.auth_is_anon_user(context):
@@ -213,7 +206,7 @@ def package_create(context, data_dict=None):
 def package_update(context, data_dict):
     user = context.get('user')
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     package = logic_auth.get_package_object(context, data_dict)
 
@@ -300,58 +293,22 @@ def _check_group_auth(context, data_dict):
 
     return True
 
+def _no_permissions(context, msg):
+    user = context['user']
+    return {'success': False, 'msg': msg.format(user=user)}
 
-def auth_group_create(context, data_dict=None):
-
-    # Get the user name of the logged-in user.
-    user_name = context['user']
-
-    # Get a list of the members of the 'curators' group.
-    members = toolkit.get_action('member_list')(
-        data_dict={'id': 'spravcovia', 'object_type': 'user'})
-
-    # 'members' is a list of (user_id, object_type, capacity) tuples, we're
-    # only interested in the user_ids.
-    member_ids = [member_tuple[0] for member_tuple in members]
-
-    # We have the logged-in user's user name, get their user id.
-    convert_user_name_or_id_to_id = toolkit.get_converter(
-        'convert_user_name_or_id_to_id')
-    user_id = convert_user_name_or_id_to_id(user_name, context)
-
-    # Finally, we can test whether the user is a member of the curators group.
-    if user_id in member_ids:
-        return {'success': True}
-    else:
-        return {'success': False,
-                'msg': 'Only spravcovia are allowed to create groups'}
-        
+@logic.auth_allow_anonymous_access
 def auth_organization_create(context, data_dict=None):
+    msg = toolkit._('Organization can not be created.')
+    return _no_permissions(context, msg)
 
-    # Get the user name of the logged-in user.
-    user_name = context['user']
+@logic.auth_allow_anonymous_access
+def auth_group_create(context, data_dict=None):
+    msg = toolkit._('Group can not be created.')
+    return _no_permissions(context, msg)
 
-    # Get a list of the members of the 'curators' group.
-    members = toolkit.get_action('member_list')(
-        data_dict={'id': 'spravcovia', 'object_type': 'user'})
 
-    # 'members' is a list of (user_id, object_type, capacity) tuples, we're
-    # only interested in the user_ids.
-    member_ids = [member_tuple[0] for member_tuple in members]
-
-    # We have the logged-in user's user name, get their user id.
-    convert_user_name_or_id_to_id = toolkit.get_converter(
-        'convert_user_name_or_id_to_id')
-    user_id = convert_user_name_or_id_to_id(user_name, context)
-
-    # Finally, we can test whether the user is a member of the curators group.
-    if user_id in member_ids:
-        return {'success': True}
-    else:
-        return {'success': False,
-                'msg': 'Only spravcovia are allowed to create organization'}
-
-@logic.auth_allow_anonymous_access        
+@logic.auth_allow_anonymous_access
 def auth_app_create(context, data_dict=None):
     # Get the user name of the logged-in user.
     user_name = context['user']
@@ -374,11 +331,11 @@ def auth_app_edit(context, data_dict=None):
         return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
     try:
-        if data_dict['owner_id']==user_id or user_has_role(user_id, Roles.ROLE_APP_ADMIN):
+        if data_dict['owner_id']==user_id or user_has_role(user_id, Roles.MOD_R_APP):
             return {'success': True}
     except TypeError as e:
         log.exception(e)
-        if user_has_role(user_id, Roles.ROLE_APP_ADMIN):
+        if user_has_role(user_id, Roles.MOD_R_APP):
             return {'success': True}
     
     return {'success': False,
@@ -393,7 +350,7 @@ def auth_app_edit_all(context, data_dict=None):
     except df.Invalid:
         return {'success': False,
                 'msg': _('Only application owner and application administrators are allowed to edit applications')}
-    if user_has_role(user_id, Roles.ROLE_APP_ADMIN):
+    if user_has_role(user_id, Roles.MOD_R_APP):
         return {'success': True}
     
     return {'success': False,
@@ -402,44 +359,80 @@ def auth_app_edit_all(context, data_dict=None):
 @logic.auth_allow_anonymous_access
 def auth_storage_usage(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to manage storage usage.')}
 
 @logic.auth_allow_anonymous_access
 def auth_comments_administration(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_MODERATOR in user_roles:
+    if Roles.MOD_R_MODER in user_roles:
         return {'success': True}
     return {'success': False, 'msg': _('Only moderator is authorized to manage comments and blogs.')}
 
 @logic.auth_allow_anonymous_access
 def auth_tags_administration(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to manage tags of datasets.')}
 
 @logic.auth_allow_anonymous_access
 def auth_add_dataset_rating(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to edit rating of datasets.')}
 
 @logic.auth_allow_anonymous_access
 def auth_uv_usage(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_SPRAVCA_TRANSFORMACII in user_roles or package_create(context, data_dict)['success']:
+    if Roles.MOD_R_TRANSA in user_roles or package_create(context, data_dict)['success']:
         return {'success': True}
     return {'success': False, 'msg': _('You do not have permission to use Unified Views.')}
 
 @logic.auth_allow_anonymous_access
 def auth_sla_management(context, data_dict=None):
     user_roles = user_custom_roles(context, data_dict)
-    if Roles.ROLE_DATA_CURATOR in user_roles:
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
     return {'success': False, 'msg': _('Only data curator is authorized to manage SLA.')}
+
+@logic.auth_allow_anonymous_access
+def is_data_curator(context, data_dict=None):
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.MOD_R_DATA in user_roles:
+        return {'success': True}
+    return {'success': False, 'msg': _('Current user does not have role data curator.')}
+
+def package_delete(context, data_dict):
+    # Defer auhtorization for package_delete to package_update, as deletions
+    # are essentially changing the state field
+    return package_update(context, data_dict)
+
+def resource_delete(context, data_dict):
+    model = context['model']
+    user = context.get('user')
+    resource = get_resource_object(context, data_dict)
+
+    # check authentication against package
+    query = model.Session.query(model.Package)\
+        .join(model.ResourceGroup)\
+        .join(model.Resource)\
+        .filter(model.ResourceGroup.id == resource.resource_group_id)
+    pkg = query.first()
+    if not pkg:
+        raise logic.NotFound(_('No package found for this resource, cannot check auth.'))
+
+    pkg_dict = {'id': pkg.id}
+    authorized = package_delete(context, pkg_dict).get('success')
+
+    if not authorized:
+        return {'success': False, 'msg': _('User %s not authorized to delete resource %s') % (user, resource.id)}
+    else:
+        return {'success': True}
+
+
 
 def user_update_url():
     return config.get('ckan.profile_update_url', None)
@@ -459,15 +452,22 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
     def get_actions(self):
         return {'organization_list_for_user' : organization_list_for_user,
                 'user_custom_roles' : user_custom_roles,
-                'enum_roles' : roles}
+                'enum_roles' : roles,
+                'package_create' : custom_action.package_create,
+                'package_update' : custom_action.package_update,
+                'resource_create' : custom_action.resource_create,
+                'resource_update' : custom_action.resource_update,
+                'probe' : custom_action.probe}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
                 'organization_create' : auth_organization_create,
                 'package_create' : package_create,
                 'package_update' : package_update,
+                'package_delete' : package_delete,
                 'package_show' : package_show,
                 'resource_show' : resource_show,
+                'resource_delete' : resource_delete,
                 'app_create' : auth_app_create,
                 'app_edit' : auth_app_edit,
                 'app_editall' : auth_app_edit_all,
@@ -476,6 +476,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'tags_admin' : auth_tags_administration,
                 'add_dataset_rating' : auth_add_dataset_rating,
                 'uv_usage' : auth_uv_usage,
-                'sla_management' : auth_sla_management
+                'sla_management' : auth_sla_management,
+                'is_data_curator' : is_data_curator
                 }
             

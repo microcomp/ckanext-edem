@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version:  CKANEXT-EDEM\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-02-23 14:51+0100\n"
+"POT-Creation-Date: 2015-05-28 10:00+0100\n"
 "PO-Revision-Date: 2015-01-10 16:51+0000\n"
 "Last-Translator: Dominik Kapisinsky <kapisinsky@microcomp.sk>\n"
 "Language-Team: Slovak (http://www.transifex.com/projects/p/ckanext-"
@@ -20,50 +20,132 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 0.9.6\n"
 
-#: ckanext/edem/plugin.py:133
+#: ckanext/edem/plugin.py:126
+msgid "No package found for this resource, cannot check auth."
+msgstr ""
+
+#: ckanext/edem/plugin.py:132 ckanext/edem/plugin.py:139
+#, fuzzy, python-format
+#| msgid "User %s not authorized to edit package %s"
+msgid "User %s not authorized to read resource %s"
+msgstr "Používateľ %s nemá oprávnenie upravovať dataset %s"
+
+#: ckanext/edem/plugin.py:164
+#, fuzzy, python-format
+#| msgid "User %s not authorized to edit package %s"
+msgid "User %s not authorized to read package %s"
+msgstr "Používateľ %s nemá oprávnenie upravovať dataset %s"
+
+#: ckanext/edem/plugin.py:190
 #, python-format
 msgid "User %s not authorized to create packages"
 msgstr "Používateľ %s nemá oprávnenie vytvárať datasety"
 
-#: ckanext/edem/plugin.py:137 ckanext/edem/plugin.py:183
+#: ckanext/edem/plugin.py:194 ckanext/edem/plugin.py:240
 #, python-format
 msgid "User %s not authorized to edit these groups"
 msgstr "Používateľ %s nemá oprávnenie upravovať tieto skupiny"
 
-#: ckanext/edem/plugin.py:144
+#: ckanext/edem/plugin.py:201
 #, python-format
 msgid "User %s not authorized to add dataset to this organization"
 msgstr "Používateľ %s nemá oprávnenie pridávať datasety k tejto organizácií"
 
-#: ckanext/edem/plugin.py:177
+#: ckanext/edem/plugin.py:234
 #, python-format
 msgid "User %s not authorized to edit package %s"
 msgstr "Používateľ %s nemá oprávnenie upravovať dataset %s"
 
-#: ckanext/edem/plugin.py:224
+#: ckanext/edem/plugin.py:281
 msgid "Group was not found."
 msgstr "Skupiny sa nenašla."
 
-#: ckanext/edem/plugin.py:299
+#: ckanext/edem/plugin.py:356
 msgid "Only authenticated users are allowed to create applications"
 msgstr "Iba prihlásení používatelia môžu vytvárať aplikácie."
 
-#: ckanext/edem/plugin.py:310 ckanext/edem/plugin.py:320
-#: ckanext/edem/plugin.py:330 ckanext/edem/plugin.py:335
+#: ckanext/edem/plugin.py:367 ckanext/edem/plugin.py:377
+#: ckanext/edem/plugin.py:387 ckanext/edem/plugin.py:392
 msgid ""
 "Only application owner and application administrators are allowed to edit"
 " applications"
 msgstr "Iba tvorca aplikácie a administrátor aplikácii môžu upravovať aplikáciu."
 
-#: ckanext/edem/plugin.py:342
+#: ckanext/edem/plugin.py:399
 msgid "Only data curator is authorized to manage storage usage."
 msgstr "Iba dátový kurátor má povolenie spravovať riadenie úložísk."
 
-#: ckanext/edem/plugin.py:349
+#: ckanext/edem/plugin.py:406
 msgid "Only moderator is authorized to manage comments and blogs."
 msgstr "Iba moderátor má povolenie spravovať komentáre a blogy."
 
-#: ckanext/edem/plugin.py:356
+#: ckanext/edem/plugin.py:413
 msgid "Only data curator is authorized to manage tags of datasets."
 msgstr "Iba dátový kurátor má povolenie spravovať navrhnuté tagy datasetov."
+
+#: ckanext/edem/plugin.py:420
+#, fuzzy
+#| msgid "Only data curator is authorized to manage tags of datasets."
+msgid "Only data curator is authorized to edit rating of datasets."
+msgstr "Iba dátový kurátor má povolenie spravovať navrhnuté tagy datasetov."
+
+#: ckanext/edem/plugin.py:427
+msgid "You do not have permission to use Unified Views."
+msgstr "Nemáte dostatočné oprávnenie pre použitie Unified Views"
+
+#: ckanext/edem/plugin.py:434
+#, fuzzy
+#| msgid "Only data curator is authorized to manage storage usage."
+msgid "Only data curator is authorized to manage SLA."
+msgstr "Iba dátový kurátor má povolenie spravovať SLA."
+
+#: ckanext/edem/logic/actions.py:177
+#, python-format
+msgid "REST API: Create object %s"
+msgstr ""
+
+#: ckanext/edem/logic/actions.py:254
+#, fuzzy
+#| msgid "Group was not found."
+msgid "Package was not found."
+msgstr "Skupiny sa nenašla."
+
+#: ckanext/edem/logic/actions.py:296
+#, python-format
+msgid "REST API: Update object %s"
+msgstr ""
+
+#: ckanext/edem/logic/actions.py:446 ckanext/edem/logic/actions.py:459
+#, fuzzy
+#| msgid "Group was not found."
+msgid "Resource was not found."
+msgstr "Skupiny sa nenašla."
+
+#: ckanext/edem/templates/header.html:6
+msgid "Sysadmin settings"
+msgstr ""
+
+#: ckanext/edem/templates/header.html:12
+msgid "View profile"
+msgstr "Zobraziť profil"
+
+#: ckanext/edem/templates/header.html:24
+#, python-format
+msgid "Dashboard (%(num)d new item)"
+msgid_plural "Dashboard (%(num)d new items)"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: ckanext/edem/templates/header.html:33 ckanext/edem/templates/header.html:35
+msgid "Edit settings"
+msgstr "Upraviť nastavenia"
+
+#: ckanext/edem/templates/header.html:43
+msgid "Log out"
+msgstr "Odhlásiť sa"
+
+#: ckanext/edem/templates/user/read_base.html:6
+msgid "Manage"
+msgstr "Spravovať"
 
