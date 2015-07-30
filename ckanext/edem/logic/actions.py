@@ -13,6 +13,8 @@ import ckan.lib.dictization.model_dictize as model_dictize
 import ckan.model as model
 from ckan.common import _
 
+from ckanext.edem.model.lock_db import unlock_dataset
+
 _validate = ckan.lib.navl.dictization_functions.validate
 _check_access = logic.check_access
 ValidationError = logic.ValidationError
@@ -58,6 +60,18 @@ def audit_helper(input_data_dict, op_output_dict, event):
         log.info('dict for auditlog send: %s', audit_dict)
         _get_action('auditlog_send')(data_dict=audit_dict)
 
+def package_unlock(context, data_dict):
+    log.info('package_unlock')
+    _check_access('package_unlock', context, data_dict)
+    name_or_id = data_dict.get("id") or data_dict['name']
+    log.info('package update: %s', data_dict)
+    pkg = model.Package.get(name_or_id)
+    if pkg is None:
+        raise NotFound(_('Package was not found.'))
+    log.info('unlocking')
+    unlock_dataset(pkg.id)
+    
+    
 def package_create(context, data_dict):
     '''Create a new dataset (package).
 
@@ -332,6 +346,8 @@ def package_update(context, data_dict):
     #action will be audited in resource_create or resource_update action
     if not context.get('defer_audit', None):
         audit_helper(data_dict, output, 'package_update')
+    
+    _get_action('package_unlock')(context, {'id': pkg.id})
     
     return output
 

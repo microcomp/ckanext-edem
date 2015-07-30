@@ -13,6 +13,8 @@ from ckan.logic.auth import (get_package_object, get_group_object,
 from pylons import config
 from pylons import session
 
+from ckanext.edem.model.lock_db import DatasetLock, lock_table, is_locked, lock_dataset, authorized_dataset_update
+
 log = logging.getLogger(__name__)
 #from ckan.common import _
 _ = toolkit._
@@ -109,13 +111,10 @@ def user_has_role(user_id, role_name):
 
 @logic.auth_allow_anonymous_access        
 def resource_show(context, data_dict):
-    log.info('resource_show auth')
+    log.info('resource_show auth')       
     model = context['model']
     user = context.get('user')
-    user_roles = user_custom_roles(context, data_dict)
-    if Roles.MOD_R_DATA in user_roles:
-        return {'success': True}
-    
+    log.info('user resource show: %s', user)  
     resource = get_resource_object(context, data_dict)
         
     # check authentication against package
@@ -126,7 +125,19 @@ def resource_show(context, data_dict):
     pkg = query.first()
     if not pkg:
         raise logic.NotFound(_('No package found for this resource, cannot check auth.'))
-
+    for_edit = context.get('for_edit', None)
+    log.info('resource show for edit: %s', for_edit)
+    if for_edit:
+        if not is_locked(pkg.id):
+            lock_dataset(pkg.id, user)
+        else:
+            if not authorized_dataset_update(pkg.id, user):
+                return {'success': False, 'msg': _('Resource %s is locked by another user') % (resource.id)}
+    
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.MOD_R_DATA in user_roles:
+        return {'success': True}
+    
     pkg_dict = {'id': pkg.id}
     authorized = package_show(context, pkg_dict).get('success')
 
@@ -143,10 +154,18 @@ def resource_show(context, data_dict):
 @logic.auth_allow_anonymous_access
 def package_show(context, data_dict):
     user = context.get('user')
+    package = get_package_object(context, data_dict)
+    for_edit = context.get('for_edit', None)
+    log.info('package show for edit: %s', for_edit)
+    if for_edit:
+        if not is_locked(package.id):
+            lock_dataset(package.id, user)
+        else:
+            if not authorized_dataset_update(package.id, user):
+                return {'success': False, 'msg': _('Package %s is locked by another user') % (package.id)}
     user_roles = user_custom_roles(context, data_dict)
     if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
-    package = get_package_object(context, data_dict)
     # draft state indicates package is still in the creation process
     # so we need to check we have creation rights.
     if package.state.startswith('draft'):
@@ -205,11 +224,18 @@ def package_create(context, data_dict=None):
 @logic.auth_allow_anonymous_access
 def package_update(context, data_dict):
     user = context.get('user')
+    package = logic_auth.get_package_object(context, data_dict)
+    for_edit = context.get('for_edit', None)
+    log.info('package show for edit: %s', for_edit)
+    if for_edit:
+        if not is_locked(package.id):
+            lock_dataset(package.id, user)
+        else:
+            if not authorized_dataset_update(package.id, user):
+                return {'success': False, 'msg': _('Package %s is locked by another user') % (package.id)}
     user_roles = user_custom_roles(context, data_dict)
     if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
-    package = logic_auth.get_package_object(context, data_dict)
-
     if package.owner_org:
         # if there is an owner org then we must have update_dataset
         # permission for that organization
@@ -432,22 +458,37 @@ def resource_delete(context, data_dict):
     else:
         return {'success': True}
 
+@logic.auth_allow_anonymous_access
+def package_unlock(context, data_dict):
+    log.info('auth package_unlock')
+    return package_update(context, data_dict)
 
+
+#helpers
 
 def user_update_url():
     return config.get('ckan.profile_update_url', None)
+
+def package_is_locked(package_id):
+    return is_locked(package_id)
         
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer, inherit=False)
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
     plugins.implements(plugins.ITemplateHelpers)
+    plugins.implements(plugins.IRoutes, inherit=True)
     
     def update_config(self, config):
         toolkit.add_template_directory(config, 'templates')
+        
+    def before_map(self, map):
+        map.connect('dataset_unlock','/dataset/unlock/{id}', action='unlock', controller='ckanext.edem.dataset_controller:DatasetLockController')
+        return map
     
     def get_helpers(self):
-        return {'get_user_update_url' : user_update_url}
+        return {'get_user_update_url' : user_update_url,
+                'package_is_locked' : package_is_locked}
     
     def get_actions(self):
         return {'organization_list_for_user' : organization_list_for_user,
@@ -457,7 +498,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'package_update' : custom_action.package_update,
                 'resource_create' : custom_action.resource_create,
                 'resource_update' : custom_action.resource_update,
-                'probe' : custom_action.probe}
+                'probe' : custom_action.probe,
+                'package_unlock' : custom_action.package_unlock}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
@@ -477,6 +519,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'add_dataset_rating' : auth_add_dataset_rating,
                 'uv_usage' : auth_uv_usage,
                 'sla_management' : auth_sla_management,
-                'is_data_curator' : is_data_curator
+                'is_data_curator' : is_data_curator,
+                'package_unlock' : package_unlock
                 }
             
