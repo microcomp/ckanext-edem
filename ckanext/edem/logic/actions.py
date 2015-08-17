@@ -68,8 +68,12 @@ def package_unlock(context, data_dict):
     pkg = model.Package.get(name_or_id)
     if pkg is None:
         raise NotFound(_('Package was not found.'))
-    log.info('unlocking')
-    unlock_dataset(pkg.id)
+    subject_id = data_dict.get('subject_id', None)
+    actor_id = data_dict.get('actor_id', None)
+    user_obj = context['auth_user_obj']
+    if not subject_id:
+        subject_id = user_obj.id
+    unlock_dataset(pkg.id, subject_id, actor_id)
     
     
 def package_create(context, data_dict):

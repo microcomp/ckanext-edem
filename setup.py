@@ -35,7 +35,10 @@ setup(
                     ],
         'ckan.plugins' : [
                     'edem =ckanext.edem.plugin:EdemCustomPlugin',
-                    ]
+                    ],
+        'paste.paster_command' : [
+                    'edem-cmd = ckanext.edem.edem_cmd:EdemCmd'
+                ]
         }
 
     

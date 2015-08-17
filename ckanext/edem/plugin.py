@@ -111,7 +111,6 @@ def user_has_role(user_id, role_name):
 
 @logic.auth_allow_anonymous_access        
 def resource_show(context, data_dict):
-    log.info('resource_show auth')       
     model = context['model']
     user = context.get('user')
     log.info('user resource show: %s', user)  
@@ -127,12 +126,10 @@ def resource_show(context, data_dict):
         raise logic.NotFound(_('No package found for this resource, cannot check auth.'))
     for_edit = context.get('for_edit', None)
     log.info('resource show for edit: %s', for_edit)
-    if for_edit:
-        if not is_locked(pkg.id):
-            lock_dataset(pkg.id, user)
-        else:
-            if not authorized_dataset_update(pkg.id, user):
-                return {'success': False, 'msg': _('Resource %s is locked by another user') % (resource.id)}
+    locked = context.get('operation_locked', None)
+    if for_edit and not locked:
+        lock_dataset(pkg.id, user)
+        context['operation_locked'] = True
     
     user_roles = user_custom_roles(context, data_dict)
     if Roles.MOD_R_DATA in user_roles:
@@ -156,13 +153,11 @@ def package_show(context, data_dict):
     user = context.get('user')
     package = get_package_object(context, data_dict)
     for_edit = context.get('for_edit', None)
-    log.info('package show for edit: %s', for_edit)
-    if for_edit:
-        if not is_locked(package.id):
-            lock_dataset(package.id, user)
-        else:
-            if not authorized_dataset_update(package.id, user):
-                return {'success': False, 'msg': _('Package %s is locked by another user') % (package.id)}
+    #TODO this should be done if and only if auth function returns True
+    locked = context.get('operation_locked', None)
+    if for_edit and not locked:
+        lock_dataset(package.id, user)
+        context['operation_locked'] = True
     user_roles = user_custom_roles(context, data_dict)
     if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
@@ -226,13 +221,10 @@ def package_update(context, data_dict):
     user = context.get('user')
     package = logic_auth.get_package_object(context, data_dict)
     for_edit = context.get('for_edit', None)
-    log.info('package show for edit: %s', for_edit)
-    if for_edit:
-        if not is_locked(package.id):
-            lock_dataset(package.id, user)
-        else:
-            if not authorized_dataset_update(package.id, user):
-                return {'success': False, 'msg': _('Package %s is locked by another user') % (package.id)}
+    locked = context.get('operation_locked', None)
+    if for_edit and not locked:
+        lock_dataset(package.id, user)
+        context['operation_locked'] = True
     user_roles = user_custom_roles(context, data_dict)
     if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
@@ -463,9 +455,6 @@ def package_unlock(context, data_dict):
     log.info('auth package_unlock')
     return package_update(context, data_dict)
 
-
-#helpers
-
 def user_update_url():
     return config.get('ckan.profile_update_url', None)
 
@@ -477,14 +466,9 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
     plugins.implements(plugins.ITemplateHelpers)
-    plugins.implements(plugins.IRoutes, inherit=True)
     
     def update_config(self, config):
         toolkit.add_template_directory(config, 'templates')
-        
-    def before_map(self, map):
-        map.connect('dataset_unlock','/dataset/unlock/{id}', action='unlock', controller='ckanext.edem.dataset_controller:DatasetLockController')
-        return map
     
     def get_helpers(self):
         return {'get_user_update_url' : user_update_url,
