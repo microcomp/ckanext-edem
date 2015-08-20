@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 def audit_helper(input_data_dict, op_output_dict, event):
     revision_id = op_output_dict.get('revision_id', None)
     actor_id = input_data_dict.get('actor_id', None)
-    if not actor_id:
+    if not actor_id and 'save' in dir(session):
         actor_id = session.get('ckanext-cas-actorid', None)
     if revision_id and actor_id:
         log.info('audit revision call: revision_id %s, actor_id %s', revision_id, actor_id)
@@ -71,8 +71,13 @@ def package_unlock(context, data_dict):
     subject_id = data_dict.get('subject_id', None)
     actor_id = data_dict.get('actor_id', None)
     user_obj = context['auth_user_obj']
+    user = context['user']
     if not subject_id:
-        subject_id = user_obj.id
+        if user_obj:
+            subject_id = user_obj.id
+        else:
+            user_obj = model.User.get(user)
+            subject_id = user_obj.id
     unlock_dataset(pkg.id, subject_id, actor_id)
     
     

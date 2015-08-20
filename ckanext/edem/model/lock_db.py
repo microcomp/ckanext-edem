@@ -92,7 +92,7 @@ def lock_dataset(dataset_id, lock_owner_subject_id, lock_owner_actor_id=None):
         
 def unlock_dataset(dataset_id, subject_id, actor_id = None):
     create_lock_table()
-    if not actor_id:
+    if not actor_id and 'save' in dir(session):
         actor_id = session.get('ckanext-cas-actorid', subject_id)
     search = {'dataset_id' : dataset_id, 'lock_owner_subject_id' : subject_id, 'lock_owner_actor_id' : actor_id}
     res = DatasetLock.get(**search)
