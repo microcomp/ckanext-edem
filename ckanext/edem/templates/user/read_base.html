@@ -6,3 +6,22 @@
   	<a href="{{h.get_user_update_url()}}" target="_blank" class="btn" alt="Profile update"><i class="icon-wrench"></i> {{_('Manage')}} </a>
   {% endif %}
 {% endblock %}
+
+{% block user_info %}
+	{{super()}}
+	{% if c.is_myself %}
+		<div class="info">
+		<dl>
+		<dt>{{ _('API settings') }}</dt>
+		<dd><a href="/API_management/NewAPIKey"> <i class="fa fa-external-link" ></i> {{_('New API key')}} </a></dd>
+        {% if h.check_access('allow_disable_api') %}
+			{% if h.user_allowed_api_call(user.id) %}
+				<dd><a href="/api_access/abort"> <i class="fa fa-external-link" ></i> {{_('Disable API usage')}} </a></dd>
+			{% else %}
+				<dd><a href="/api_access/allow"> <i class="fa fa-external-link" ></i> {{_('Allow API usage')}} </a></dd>
+			{% endif %}
+		{% endif %}
+		</dl>
+		</div>
+    {% endif %}
+{%endblock%}

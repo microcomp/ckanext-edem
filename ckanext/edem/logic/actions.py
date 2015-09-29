@@ -14,6 +14,7 @@ import ckan.model as model
 from ckan.common import _
 
 from ckanext.edem.model.lock_db import unlock_dataset
+from ckanext.edem.model.api_access_db import user_make_api_call as db_user_make_api_call
 
 _validate = ckan.lib.navl.dictization_functions.validate
 _check_access = logic.check_access
@@ -23,6 +24,10 @@ NotFound = logic.NotFound
 _get_or_bust = logic.get_or_bust
 
 log = logging.getLogger(__name__)
+
+def user_make_api_call(context, data_dict):
+    user_id = _get_or_bust(data_dict, 'user_id')
+    return db_user_make_api_call(user_id)
 
 def audit_helper(input_data_dict, op_output_dict, event):
     revision_id = op_output_dict.get('revision_id', None)

@@ -14,6 +14,7 @@ from pylons import config
 from pylons import session
 
 from ckanext.edem.model.lock_db import DatasetLock, lock_table, is_locked, lock_dataset, authorized_dataset_update
+from ckanext.edem.model.api_access_db import user_make_api_call
 
 log = logging.getLogger(__name__)
 #from ckan.common import _
@@ -460,19 +461,46 @@ def user_update_url():
 
 def package_is_locked(package_id):
     return is_locked(package_id)
+
+def can_make_api_call(user_id):
+    return user_make_api_call(user_id)
+
+
+def _wrapper_allow_disable_api(role_name):
+    @logic.auth_allow_anonymous_access
+    def allow_disable_api(context, data_dict=None):
+        user_roles = user_custom_roles(context, data_dict)
+        log.info('user roles: %s', user_roles)
+        log.info('role name: %s', role_name)
+        if role_name in user_roles:
+            return {'success': True}
+        return {'success': False, 'msg': _('Current user does not have role data curator.')}
+    return allow_disable_api
         
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer, inherit=False)
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
     plugins.implements(plugins.ITemplateHelpers)
+    plugins.implements(plugins.IConfigurable)
+    plugins.implements(plugins.IRoutes, inherit=True)
+    
+    def before_map(self, map):
+        map.connect('api_abort', '/api_access/abort', action='abort', controller='ckanext.edem.controllers.api_access:ApiAccessController')
+        map.connect('api_allow', '/api_access/allow', action='allow', controller='ckanext.edem.controllers.api_access:ApiAccessController')
+        return map
+    
+    def configure(self, config):
+        self.ckan_url = config.get('ckan.site_url', None)
+        self.role_allow_disable_api = config.get('ckanext.edem.user_role_allow_disable_api', None)
     
     def update_config(self, config):
         toolkit.add_template_directory(config, 'templates')
     
     def get_helpers(self):
         return {'get_user_update_url' : user_update_url,
-                'package_is_locked' : package_is_locked}
+                'package_is_locked' : package_is_locked,
+                'user_allowed_api_call' : can_make_api_call}
     
     def get_actions(self):
         return {'organization_list_for_user' : organization_list_for_user,
@@ -483,7 +511,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'resource_create' : custom_action.resource_create,
                 'resource_update' : custom_action.resource_update,
                 'probe' : custom_action.probe,
-                'package_unlock' : custom_action.package_unlock}
+                'package_unlock' : custom_action.package_unlock,
+                'user_make_api_call' : custom_action.user_make_api_call}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
@@ -504,6 +533,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'uv_usage' : auth_uv_usage,
                 'sla_management' : auth_sla_management,
                 'is_data_curator' : is_data_curator,
-                'package_unlock' : package_unlock
+                'package_unlock' : package_unlock,
+                'allow_disable_api' : _wrapper_allow_disable_api(self.role_allow_disable_api)
                 }
             
