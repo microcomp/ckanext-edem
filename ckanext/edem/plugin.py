@@ -151,35 +151,41 @@ def resource_show(context, data_dict):
 
 @logic.auth_allow_anonymous_access
 def package_show(context, data_dict):
-    user = context.get('user')
-    package = get_package_object(context, data_dict)
-    for_edit = context.get('for_edit', None)
-    #TODO this should be done if and only if auth function returns True
-    locked = context.get('operation_locked', None)
-    if for_edit and not locked:
-        lock_dataset(package.id, user)
-        context['operation_locked'] = True
-    user_roles = user_custom_roles(context, data_dict)
-    if Roles.MOD_R_DATA in user_roles:
-        return {'success': True}
-    # draft state indicates package is still in the creation process
-    # so we need to check we have creation rights.
-    if package.state.startswith('draft'):
-        auth = new_authz.is_authorized('package_update',
-                                       context, data_dict)
-        authorized = auth.get('success')
-    elif package.owner_org is None and package.state == 'active':
-        return {'success': True}
-    else:
-        # anyone can see a public package
-        if not package.private and package.state == 'active':
+    def _package_show(context, data_dict):
+        user = context.get('user')
+        package = get_package_object(context, data_dict)
+        user_roles = user_custom_roles(context, data_dict)
+        if Roles.MOD_R_DATA in user_roles:
             return {'success': True}
-        authorized = new_authz.has_user_permission_for_group_or_org(
-            package.owner_org, user, 'read')
-    if not authorized:
-        return {'success': False, 'msg': _('User %s not authorized to read package %s') % (user, package.id)}
-    else:
-        return {'success': True}
+        # draft state indicates package is still in the creation process
+        # so we need to check we have creation rights.
+        if package.state.startswith('draft'):
+            auth = new_authz.is_authorized('package_update',
+                                           context, data_dict)
+            authorized = auth.get('success')
+        elif package.owner_org is None and package.state == 'active':
+            return {'success': True}
+        else:
+            # anyone can see a public package
+            if not package.private and package.state == 'active':
+                return {'success': True}
+            authorized = new_authz.has_user_permission_for_group_or_org(
+                package.owner_org, user, 'read')
+        if not authorized:
+            return {'success': False, 'msg': _('User %s not authorized to read package %s') % (user, package.id)}
+        else:
+            return {'success': True}
+
+    result = _package_show(context, data_dict)
+    for_edit = context.get('for_edit', None)
+    if result['success']:
+        locked = context.get('operation_locked', None)
+        if for_edit and not locked:
+            user = context.get('user')
+            package = get_package_object(context, data_dict)
+            lock_dataset(package.id, user)
+            context['operation_locked'] = True
+    return result
 
 
 @logic.auth_allow_anonymous_access
