@@ -75,12 +75,14 @@ def is_locked(dataset_id):
     res = []
     for entry in result:
         subject = model.User.get(entry.lock_owner_subject_id)
-        pair_user = subject.fullname
-        if entry.lock_owner_subject_id != entry.lock_owner_actor_id:
-            actor = model.User.get(entry.lock_owner_actor_id)
-            pair_user += ' (' + actor.fullname + ')'
-        pair_user += ' - ' + entry.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        res.append(pair_user)
+        if subject:
+            pair_user = subject.fullname
+            if entry.lock_owner_subject_id != entry.lock_owner_actor_id:
+                actor = model.User.get(entry.lock_owner_actor_id)
+                if actor:            
+                    pair_user += ' (' + actor.fullname + ')'
+            pair_user += ' - ' + entry.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            res.append(pair_user)
     return list(set(res))
 
 def lock_dataset(dataset_id, lock_owner_subject_id, lock_owner_actor_id=None):
