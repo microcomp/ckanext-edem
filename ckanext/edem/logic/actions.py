@@ -15,6 +15,7 @@ from ckan.common import _
 
 from ckanext.edem.model.lock_db import unlock_dataset
 from ckanext.edem.model.api_access_db import user_make_api_call as db_user_make_api_call
+from ckanext.edem.model.resource_ds_table_db import set_resource_table_update, set_resource_tables_success, get_lately_modified_resources
 
 _validate = ckan.lib.navl.dictization_functions.validate
 _check_access = logic.check_access
@@ -24,6 +25,20 @@ NotFound = logic.NotFound
 _get_or_bust = logic.get_or_bust
 
 log = logging.getLogger(__name__)
+
+def resource_table_status_update(context, data_dict):
+    _check_access('resource_table_status_update', context, data_dict)
+    resource_id = _get_or_bust(data_dict, 'resource_id')
+    success = data_dict.get('to_file_success', False)
+    if success:
+        return set_resource_tables_success(resource_id)
+    return set_resource_table_update(resource_id)
+
+def resource_datastore_lately_modified(context, data_dict):
+    #since in hours
+    threshold = data_dict.get('threshold', 1)
+    resources = get_lately_modified_resources(threshold)
+    return resources
 
 def user_make_api_call(context, data_dict):
     user_id = _get_or_bust(data_dict, 'user_id')

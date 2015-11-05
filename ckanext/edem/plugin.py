@@ -8,6 +8,7 @@ import ckan.lib.navl.dictization_functions as df
 import ckan.lib.dictization.model_dictize as model_dictize
 import logging
 import logic.actions as custom_action
+import logic.auth as custom_auth
 from ckan.logic.auth import (get_package_object, get_group_object,
                             get_resource_object, get_related_object)
 from pylons import config
@@ -538,7 +539,9 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'resource_update' : custom_action.resource_update,
                 'probe' : custom_action.probe,
                 'package_unlock' : custom_action.package_unlock,
-                'user_make_api_call' : custom_action.user_make_api_call}
+                'user_make_api_call' : custom_action.user_make_api_call,
+                'resource_table_status_update' : custom_action.resource_table_status_update,
+                'resource_datastore_lately_modified' : custom_action.resource_datastore_lately_modified}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
@@ -561,6 +564,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'sla_management' : auth_sla_management,
                 'is_data_curator' : is_data_curator,
                 'package_unlock' : package_unlock,
-                'allow_disable_api' : _wrapper_allow_disable_api(self.role_allow_disable_api)
+                'allow_disable_api' : _wrapper_allow_disable_api(self.role_allow_disable_api),
+                'resource_table_status_update' : custom_auth.resource_table_status_update
                 }
             
