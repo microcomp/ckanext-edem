@@ -425,9 +425,7 @@ def resource_create(context, data_dict):
     '''
     model = context['model']
     user = context['user']
-    log.info('context: %s', context)
     package_id = _get_or_bust(data_dict, 'package_id')
-    data_dict.pop('package_id')
 
     pkg_dict = _get_action('package_show')(context, {'id': package_id})
 
