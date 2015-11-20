@@ -99,8 +99,7 @@ def package_unlock(context, data_dict):
             user_obj = model.User.get(user)
             subject_id = user_obj.id
     unlock_dataset(pkg.id, subject_id, actor_id)
-    
-    
+
 def package_create(context, data_dict):
     '''Create a new dataset (package).
 

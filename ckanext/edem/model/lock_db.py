@@ -5,7 +5,8 @@ import logging
 import ckan.model as model
 from ckan.model import domain_object
 from ckan.model.meta import metadata, Session, mapper
-from sqlalchemy import types, Column, Table, ForeignKey, func, CheckConstraint
+from sqlalchemy import types, Column, Table, ForeignKey, func, CheckConstraint, outerjoin, and_
+from sqlalchemy.orm import aliased
 from pylons import session
 
 log = logging.getLogger(__name__)
@@ -44,6 +45,16 @@ class DatasetLock(domain_object.DomainObject):
     def old_locks(cls, since):
         query = Session.query(cls).filter(cls.timestamp < since)
         return query.all()
+    
+    @classmethod
+    def actual_editors(cls, dataset_id):
+        lockalias = aliased(cls)
+        query = Session.query(cls).outerjoin(lockalias, and_(cls.dataset_id == lockalias.dataset_id,\
+                                             cls.lock_owner_subject_id == lockalias.lock_owner_subject_id,\
+                                             cls.lock_owner_actor_id == lockalias.lock_owner_actor_id,\
+                                             cls.timestamp < lockalias.timestamp)).\
+                                  filter(and_(cls.dataset_id==dataset_id, lockalias.timestamp == None))
+        return query.all()
         
 
 lock_table = Table('ckanext_edem_lock', metadata,
@@ -70,8 +81,7 @@ def delete_inactive_locks():
 def is_locked(dataset_id):
     create_lock_table()
     delete_inactive_locks()
-    search = {'dataset_id' : dataset_id}
-    result = DatasetLock.get(**search)
+    result = DatasetLock.actual_editors(dataset_id)
     res = []
     for entry in result:
         subject = model.User.get(entry.lock_owner_subject_id)
@@ -81,9 +91,9 @@ def is_locked(dataset_id):
                 actor = model.User.get(entry.lock_owner_actor_id)
                 if actor:            
                     pair_user += ' (' + actor.fullname + ')'
-            pair_user += ' - ' + entry.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            pair_user += ' - ' + entry.timestamp.strftime('%H:%M:%S %d.%m.%Y')
             res.append(pair_user)
-    return list(set(res))
+    return res
 
 def lock_dataset(dataset_id, lock_owner_subject_id, lock_owner_actor_id=None):
     create_lock_table()

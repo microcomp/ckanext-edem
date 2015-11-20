@@ -66,7 +66,14 @@ def set_resource_table_update(resource_id):
     return _modify_resource_table(resource_id, False, now)
 
 def set_resource_tables_success(resource_id):
-    return _modify_resource_table(resource_id, True)
+    search = {'resource_id' : resource_id, 'to_file_success' : False}
+    result = ResourceTableState.get(**search)
+    if result:
+        result[0].to_file_success = True
+        result[0].save()
+        return True
+    return False
+    #return _modify_resource_table(resource_id, True)
 
 @db_operation_decorator
 def _modify_resource_table(resource_id, to_file_success=False, last_modified=None):

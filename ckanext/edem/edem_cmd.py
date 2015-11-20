@@ -62,8 +62,6 @@ class EdemCmd(CkanCommand):
             context = {'model' : model, 'Session' : model.Session, 'ignore_auth' : True}
             data_dict = {'resource_id' : resource_id}
             storage_path = config.get('ckan.storage_path', None)
-            if None:
-                return
             filename = get_filename(resource_id, storage_path)
             tmpfilename = filename + '~'
             limit = 100
@@ -87,7 +85,6 @@ class EdemCmd(CkanCommand):
                         spamwriter.writerow([unicode(record[column]).encode("utf-8") for column in header])
                     offset+=limit
             os.rename(tmpfilename, filename)
-        
         
         if len(self.args) == 0:
             self.parser.print_usage()
@@ -171,6 +168,9 @@ class EdemCmd(CkanCommand):
             if len(self.args) == 2:
                 resource_id = self.args[1]
                 resource2file(resource_id)
+                context = {'ignore_auth' : True}
+                data_dict = {'resource_id' : resource_id, 'to_file_success' : True}
+                toolkit.get_action('resource_table_status_update')(context, data_dict)
             else:
                 #convert all DS resource tables to CSV modified lately
                 threshold = int(config.get('ckanext.edem.threshold',1))

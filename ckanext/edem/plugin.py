@@ -125,12 +125,6 @@ def resource_show(context, data_dict):
     pkg = query.first()
     if not pkg:
         raise logic.NotFound(_('No package found for this resource, cannot check auth.'))
-    for_edit = context.get('for_edit', None)
-    log.info('resource show for edit: %s', for_edit)
-    locked = context.get('operation_locked', None)
-    if for_edit and not locked:
-        lock_dataset(pkg.id, user)
-        context['operation_locked'] = True
     
     user_roles = user_custom_roles(context, data_dict)
     if Roles.MOD_R_DATA in user_roles:
@@ -177,11 +171,15 @@ def package_show(context, data_dict):
             return {'success': True}
 
     result = _package_show(context, data_dict)
-    for_edit = context.get('for_edit', None)
+    for_edit = context.get('for_edit')
     if result['success']:
-        locked = context.get('operation_locked', None)
+        locked = context.get('operation_locked')
         if for_edit and not locked:
             user = context.get('user')
+            user_obj = context.get('auth_user_obj')
+            if not user_obj:
+                user_obj = model.User.get(user)
+            user = user_obj.id if user_obj else user
             package = get_package_object(context, data_dict)
             lock_dataset(package.id, user)
             context['operation_locked'] = True
@@ -225,55 +223,43 @@ def package_create(context, data_dict=None):
 
 @logic.auth_allow_anonymous_access
 def package_update(context, data_dict):
-    def _package_update(context, data_dict):
-        user = context.get('user')
-        package = logic_auth.get_package_object(context, data_dict)
-        user_roles = user_custom_roles(context, data_dict)
-        if Roles.MOD_R_DATA in user_roles:
-            return {'success': True}
-        if package.owner_org:
-            # if there is an owner org then we must have update_dataset
-            # permission for that organization
-            check1 = new_authz.has_user_permission_for_group_or_org(
-                package.owner_org, user, 'update_dataset'
-            )
-        else:
-            # If dataset is not owned then we can edit if config permissions allow
-            if new_authz.auth_is_anon_user(context):
-                check1 = all(new_authz.check_config_permission(p) for p in (
-                    'anon_create_dataset',
-                    'create_dataset_if_not_in_organization',
-                    'create_unowned_dataset',
-                    ))
-            else:
-                check1 = all(new_authz.check_config_permission(p) for p in (
-                    'create_dataset_if_not_in_organization',
-                    'create_unowned_dataset',
-                    )) or new_authz.has_user_permission_for_some_org(
-                    user, 'create_dataset')
-        if not check1:
-            return {'success': False,
-                    'msg': _('User %s not authorized to edit package %s') %
-                            (str(user), package.id)}
-        else:
-            check2 = _check_group_auth(context, data_dict)
-            if not check2:
-                return {'success': False,
-                        'msg': _('User %s not authorized to edit these groups') %
-                                (str(user))}
-    
+    user = context.get('user')
+    package = logic_auth.get_package_object(context, data_dict)
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
-    
-    result = _package_update(context, data_dict)
-    for_edit = context.get('for_edit', None)
-    if result['success']:
-        locked = context.get('operation_locked', None)
-        if for_edit and not locked:
-            user = context.get('user')
-            package = get_package_object(context, data_dict)
-            lock_dataset(package.id, user)
-            context['operation_locked'] = True
-    return result
+    if package.owner_org:
+        # if there is an owner org then we must have update_dataset
+        # permission for that organization
+        check1 = new_authz.has_user_permission_for_group_or_org(
+            package.owner_org, user, 'update_dataset'
+        )
+    else:
+        # If dataset is not owned then we can edit if config permissions allow
+        if new_authz.auth_is_anon_user(context):
+            check1 = all(new_authz.check_config_permission(p) for p in (
+                'anon_create_dataset',
+                'create_dataset_if_not_in_organization',
+                'create_unowned_dataset',
+                ))
+        else:
+            check1 = all(new_authz.check_config_permission(p) for p in (
+                'create_dataset_if_not_in_organization',
+                'create_unowned_dataset',
+                )) or new_authz.has_user_permission_for_some_org(
+                user, 'create_dataset')
+    if not check1:
+        return {'success': False,
+                'msg': _('User %s not authorized to edit package %s') %
+                        (str(user), package.id)}
+    else:
+        check2 = _check_group_auth(context, data_dict)
+        if not check2:
+            return {'success': False,
+                    'msg': _('User %s not authorized to edit these groups') %
+                            (str(user))}
+
+    return {'success': True}
 
 def _check_group_auth(context, data_dict):
     '''Has this user got update permission for all of the given groups?
