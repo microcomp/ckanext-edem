@@ -489,6 +489,12 @@ def _wrapper_allow_disable_api(role_name):
             return {'success': True}
         return {'success': False, 'msg': _('Current user does not have role data curator.')}
     return allow_disable_api
+
+def wrapper_renew_url():
+    renew_url = config.get('ckan.cas_renew_url')
+    def _get_cas_renew_url():
+        return renew_url
+    return _get_cas_renew_url
         
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer, inherit=False)
@@ -513,7 +519,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
     def get_helpers(self):
         return {'get_user_update_url' : user_update_url,
                 'package_is_locked' : package_is_locked,
-                'user_allowed_api_call' : can_make_api_call}
+                'user_allowed_api_call' : can_make_api_call,
+                'get_renew_url' : wrapper_renew_url()}
     
     def get_actions(self):
         return {'organization_list_for_user' : organization_list_for_user,

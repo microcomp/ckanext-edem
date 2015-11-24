@@ -44,5 +44,9 @@
                     <i class="icon-signout"></i>
                   </a>
                 </li>
+                {% set url = h.get_renew_url() %}
+                {% if url %}
+                	<iframe src="{{url}}" style="width: 0px; height: 0px; visibility:hidden; display:none"> </iframe>
+                {% endif %}
               {% endblock %}
 {% endblock %}
