@@ -202,7 +202,13 @@ def package_create(context, data_dict):
                 # Old plugins do not support passing the schema so we need
                 # to ensure they still work
                 package_plugin.check_data_dict(data_dict)
-
+    
+    #we cannot modify model but we can ensure no modification via GUI/API
+    delete_keys = ['author_email', 'maintainer', 'maintainer_email']
+    for key in delete_keys:
+        if key in data_dict:
+            del data_dict[key]
+    
     data, errors = _validate(data_dict, schema, context)
     log.debug('package_create validate_errs=%r user=%s package=%s data=%r',
               errors, context.get('user'),
@@ -320,7 +326,13 @@ def package_update(context, data_dict):
                 # Old plugins do not support passing the schema so we need
                 # to ensure they still work.
                 package_plugin.check_data_dict(data_dict)
-    
+
+    #we cannot modify model but we can ensure no modification via GUI/API
+    delete_keys = ['author_email', 'maintainer', 'maintainer_email']
+    for key in delete_keys:
+        if key in pkg_dict:
+            del pkg_dict[key]
+
     data, errors = _validate(pkg_dict, schema, context)
     log.debug('package_update validate_errs=%r user=%s package=%s',
               errors, context.get('user'),
