@@ -375,6 +375,32 @@ def auth_app_create(context, data_dict=None):
     return {'success': True}
 
 @logic.auth_allow_anonymous_access
+def tag_create(context, data_dict=None):
+    # Get the user name of the logged-in user.
+    user_name = context['user']
+    # We have the logged-in user's user name, get their user id.
+    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
+    try:
+        convert_user_name_or_id_to_id(user_name, context)
+    except df.Invalid:
+        return {'success': False,
+                'msg': _('Only authenticated users are allowed to create applications')}
+    return {'success': True}
+
+@logic.auth_allow_anonymous_access
+def vocabulary_create(context, data_dict=None):
+    # Get the user name of the logged-in user.
+    user_name = context['user']
+    # We have the logged-in user's user name, get their user id.
+    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
+    try:
+        convert_user_name_or_id_to_id(user_name, context)
+    except df.Invalid:
+        return {'success': False,
+                'msg': _('Only authenticated users are allowed to create applications')}
+    return {'success': True}
+
+@logic.auth_allow_anonymous_access
 def auth_app_edit(context, data_dict=None):
     user = context['user']
     convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
@@ -579,6 +605,8 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'is_data_curator' : is_data_curator,
                 'package_unlock' : package_unlock,
                 'allow_disable_api' : _wrapper_allow_disable_api(self.role_allow_disable_api),
-                'resource_table_status_update' : custom_auth.resource_table_status_update
+                'resource_table_status_update' : custom_auth.resource_table_status_update,
+                'tag_create': tag_create,
+                'vocabulary_create':vocabulary_create
                 }
             
