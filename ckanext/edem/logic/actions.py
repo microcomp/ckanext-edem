@@ -454,17 +454,17 @@ def resource_create(context, data_dict):
         context['use_cache'] = False
         context['defer_audit'] = True
         
-        #owner_org = pkg_dict.get('owner_org', '')
-        #if owner_org:
-        #    org_free_space = _get_action('organization_available_space')({'ignore_auth' : True}, {'id' : owner_org})
-        #else:
-        #    log.warn('unknown package owner')
-        #    org_free_space = True
+        owner_org = pkg_dict.get('owner_org', '')
+        if owner_org:
+            org_free_space = _get_action('organization_available_space')({'ignore_auth' : True}, {'id' : owner_org})
+        else:
+            log.warn('unknown package owner')
+            org_free_space = True
     
-        #if not org_free_space:
-        #    raise logic.ValidationError(
-        #                {'upload': [_('There is no free space in organization')]}
-        #            )
+        if not org_free_space:
+            raise logic.ValidationError(
+                        {'upload': [_('There is no free space in organization')]}
+                    )
 
         if data_dict.get('actor_id', None):
             pkg_dict['actor_id'] = data_dict['actor_id']
@@ -477,12 +477,12 @@ def resource_create(context, data_dict):
     ## Get out resource_id resource from model as it will not appear in
     ## package_show until after commit
  
-    #max_resource_size = _get_action('package_resource_size_limit')({'ignore_auth' : True}, {'id' : package_id})
-    #log.info('resource create max size: %s', max_resource_size)
-    #upload.upload(context['package'].resources[-1].id,
-    #              max_resource_size)
+    max_resource_size = _get_action('package_resource_size_limit')({'ignore_auth' : True}, {'id' : package_id})
+    log.info('resource create max size: %s', max_resource_size)
     upload.upload(context['package'].resources[-1].id,
-                  uploader.get_max_resource_size())
+                  max_resource_size)
+    #upload.upload(context['package'].resources[-1].id,
+    #              uploader.get_max_resource_size())
     model.repo.commit()
 
     ##  Run package show again to get out actual last_resource
@@ -545,11 +545,18 @@ def resource_update(context, data_dict):
             pkg_dict['actor_id'] = data_dict['actor_id']
         pkg_dict = _get_action('package_update')(context, pkg_dict)
         context.pop('defer_commit')
+        owner_org = pkg_dict.get('owner_org', '')
+
     except ValidationError, e:
         errors = e.error_dict['resources'][n]
         raise ValidationError(errors)
-
-    upload.upload(id, uploader.get_max_resource_size())
+    
+    max_resource_size = _get_action('package_resource_size_limit')({'ignore_auth' : True}, {'id' : package_id})
+    log.info('resource create max size: %s', max_resource_size)
+    upload.upload(context['package'].resources[-1].id,
+                  max_resource_size)
+    
+    #upload.upload(id, uploader.get_max_resource_size())
     model.repo.commit()
     res = _get_action('resource_show')(context, {'id': id})
     audit_helper(data_dict, res, 'resource_update')
