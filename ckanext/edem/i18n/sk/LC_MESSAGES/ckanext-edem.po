@@ -181,3 +181,8 @@ msgstr "Zakázať použitie API"
 msgid "Allow API usage"
 msgstr "Povoliť použitie API"
 
+msgid "My profile"
+msgstr "Môj profil"
+
+msgid "Notifications"
+msgstr "Notifikácie"
