@@ -64,7 +64,7 @@ class EdemCmd(CkanCommand):
             storage_path = config.get('ckan.storage_path', None)
             filename = get_filename(resource_id, storage_path)
             tmpfilename = filename + '~'
-            limit = 100
+            limit = 5000
             offset = 0
             with open(tmpfilename, 'wb') as csvfile:
                 spamwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -173,7 +173,7 @@ class EdemCmd(CkanCommand):
                 toolkit.get_action('resource_table_status_update')(context, data_dict)
             else:
                 #convert all DS resource tables to CSV modified lately
-                threshold = int(config.get('ckanext.edem.threshold',1))
+                threshold = int(config.get('ckanext.edem.threshold',24))
                 context = {'ignore_auth' : True}
                 data_dict = {'threshold' : threshold}
                 resources = toolkit.get_action('resource_datastore_lately_modified')(context, data_dict)
