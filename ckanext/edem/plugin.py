@@ -547,7 +547,7 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
     
     def configure(self, config):
         self.ckan_url = config.get('ckan.site_url', None)
-        self.role_allow_disable_api = config.get('ckanext.edem.user_role_allow_disable_api', None)
+        self.role_allow_disable_api = config.get('ckanext.edem.user_role_allow_disable_api', "MOD-R-PO-API")
     
     def update_config(self, config):
         toolkit.add_template_directory(config, 'templates')
