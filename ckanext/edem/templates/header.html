@@ -1,48 +1,72 @@
 {% ckan_extends %}
 
-{% block header_account_logged %}
-              {% if c.userobj.sysadmin %}
-                <li>
-                  <a href="{{ h.url_for(controller='admin', action='index') }}" title="{{ _('Sysadmin settings') }}">
-                    <i class="icon-legal"></i>
-                  </a>
-                </li>
-              {% endif %}
-              <li>
+{% block header_account_logged %}             
+
+<div id="loginPanel">
+        <div class="loginHeader">
+            <span class="user">
                 <a href="{{ h.url_for(controller='user', action='read', id=c.userobj.name) }}" class="image" title="{{ _('View profile') }}">
-                  {{ h.gravatar((c.userobj.email_hash if c and c.userobj else ''), size=22) }}
                   {% set actor_name = h.retrieve_actor_name() %}
                   <span class="username">{{ c.userobj.display_name }}
                   {% if actor_name %}
-                  	({{ actor_name }})
+                    ({{ actor_name }})
                   {% endif %}
                   </span>
                 </a>
-              </li>
-              {% set new_activities = h.new_activities() %}
-              <li class="notifications {% if new_activities > 0 %}notifications-important{% endif %}">
+            </span>
+    </div>
+            
+            <p class="loginAction" style="float:left;">
+               {% if c.userobj.sysadmin %}
+              <a href="{{ h.url_for(controller='admin', action='index') }}" title="{{ _('Sysadmin settings') }}">
+                    {{ _('Sysadmin settings') }}<!--i class="icon-legal"></i!-->
+                  </a> <br />
+                {% endif %}
+               {% set new_activities = h.new_activities() %}
+              <span class="notifications {% if new_activities > 0 %}notifications-important{% endif %}">
                 {% set notifications_tooltip = ngettext('Dashboard (%(num)d new item)', 'Dashboard (%(num)d new items)', new_activities) %}
-                <a href="{{ h.url_for(controller='user', action='dashboard') }}" title="{{ notifications_tooltip }}">
-                  <i class="icon-dashboard"></i>
+               <a href="{{ h.url_for(controller='user', action='dashboard') }}" title="{{ notifications_tooltip }}">
+                   {{_('Notifications')}}: <!--i class="icon-dashboard"></i!-->
                   <span>{{ new_activities }}</span>
                 </a>
-              </li>
+              </span>
               {% block header_account_settings_link %}
-				<li>
-				  {% if h.check_access('user_update', user) %}
-				  	<a href="{{ h.url_for(controller='user', action='edit', id=c.userobj.name) }}" title="{{ _('Edit settings') }}">
-				  {% else %}
-				  	<a href="{{h.get_user_update_url()}}" target="_blank" title="{{ _('Edit settings') }}" alt="Profile update">
-				  {% endif %}
-				<i class="icon-cog"></i>
-				</a>
-				</li>
-			  {% endblock %}
+
+          {% if h.check_access('user_update', user) %}
+            <br />{{ _('Edit settings') }}:<a href="{{ h.url_for(controller='user', action='edit', id=c.userobj.name) }}" title="{{ _('Edit settings') }}">
+          {% else %}
+           <br /><a href="{{h.get_user_update_url()}}" target="_blank" title="{{ _('Edit settings') }}" >
+          {% endif %}
+          {{ _('Edit settings') }}
+         <!--i class="icon-cog"></i-->
+        </a>
+            <br /> <a href="{{ h.url_for(controller='user', action='read', id=c.userobj.name) }}" target="_blank" title="{{ _('My profile') }}" id="profile_image_">
+
+          {{ _('My profile') }}
+         <!--i class="icon-cog"></i-->
+        </a>
+        {% endblock %}
               {% block header_account_log_out_link %}
-                <li>
-                  <a href="{{ h.url_for('/user/_logout') }}" title="{{ _('Log out') }}">
-                    <i class="icon-signout"></i>
-                  </a>
-                </li>
+   
+                  
+  
+                {% set url = h.get_renew_url() %}
+                {% if url %}
+                  <iframe src="{{url}}" style="width: 0px; height: 0px; visibility:hidden; display:none"> </iframe>
+                {% endif %}
               {% endblock %}
+            </p>
+            
+            <a name="M13$btnLogout" id="M13_btnLogout" class="logout"  href="{{ h.url_for('/user/_logout') }}" title="{{ _('Log out') }}">
+                    {{ _('Log out') }}
+                  </a>
+    </div>
+
+
+
+
 {% endblock %}
+
+
+           
+   

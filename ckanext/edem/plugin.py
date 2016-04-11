@@ -8,14 +8,39 @@ import ckan.lib.navl.dictization_functions as df
 import ckan.lib.dictization.model_dictize as model_dictize
 import logging
 import logic.actions as custom_action
+import logic.auth as custom_auth
 from ckan.logic.auth import (get_package_object, get_group_object,
                             get_resource_object, get_related_object)
 from pylons import config
 from pylons import session
 
+from ckanext.edem.model.lock_db import DatasetLock, lock_table, is_locked, lock_dataset, authorized_dataset_update
+from ckanext.edem.model.api_access_db import user_make_api_call
+
 log = logging.getLogger(__name__)
 #from ckan.common import _
 _ = toolkit._
+
+### DB HACK
+from sqlalchemy import exc
+from sqlalchemy import event
+from sqlalchemy.pool import Pool
+
+@event.listens_for(Pool, "checkout")
+def ping_connection(dbapi_connection, connection_record, connection_proxy):
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("SELECT 1")
+    except:
+        # optional - dispose the whole pool
+        # instead of invalidating one at a time
+        # connection_proxy._pool.dispose()
+
+        # raise DisconnectionError - pool will try
+        # connecting again up to three times before raising.
+        raise exc.DisconnectionError()
+    cursor.close()
+### DB END
 
 class Roles(object):
     MOD_R_PO = 'MOD-R-PO'
@@ -88,7 +113,6 @@ def organization_list_for_user(context, data_dict):
             return []
         orgs_q = orgs_q.filter(model.Group.id.in_(group_ids))
     orgs_list = model_dictize.group_list_dictize(orgs_q.all(), context)
-    log.info('available orgs : %s', orgs_list)
     return orgs_list
 
 def user_custom_roles(context, data_dict=None):
@@ -109,13 +133,9 @@ def user_has_role(user_id, role_name):
 
 @logic.auth_allow_anonymous_access        
 def resource_show(context, data_dict):
-    log.info('resource_show auth')
     model = context['model']
     user = context.get('user')
-    user_roles = user_custom_roles(context, data_dict)
-    if Roles.MOD_R_DATA in user_roles:
-        return {'success': True}
-    
+    log.info('user resource show: %s', user)  
     resource = get_resource_object(context, data_dict)
         
     # check authentication against package
@@ -126,7 +146,11 @@ def resource_show(context, data_dict):
     pkg = query.first()
     if not pkg:
         raise logic.NotFound(_('No package found for this resource, cannot check auth.'))
-
+    
+    user_roles = user_custom_roles(context, data_dict)
+    if Roles.MOD_R_DATA in user_roles:
+        return {'success': True}
+    
     pkg_dict = {'id': pkg.id}
     authorized = package_show(context, pkg_dict).get('success')
 
@@ -142,29 +166,45 @@ def resource_show(context, data_dict):
 
 @logic.auth_allow_anonymous_access
 def package_show(context, data_dict):
-    user = context.get('user')
-    user_roles = user_custom_roles(context, data_dict)
-    if Roles.MOD_R_DATA in user_roles:
-        return {'success': True}
-    package = get_package_object(context, data_dict)
-    # draft state indicates package is still in the creation process
-    # so we need to check we have creation rights.
-    if package.state.startswith('draft'):
-        auth = new_authz.is_authorized('package_update',
-                                       context, data_dict)
-        authorized = auth.get('success')
-    elif package.owner_org is None and package.state == 'active':
-        return {'success': True}
-    else:
-        # anyone can see a public package
-        if not package.private and package.state == 'active':
+    def _package_show(context, data_dict):
+        user = context.get('user')
+        package = get_package_object(context, data_dict)
+        user_roles = user_custom_roles(context, data_dict)
+        if Roles.MOD_R_DATA in user_roles:
             return {'success': True}
-        authorized = new_authz.has_user_permission_for_group_or_org(
-            package.owner_org, user, 'read')
-    if not authorized:
-        return {'success': False, 'msg': _('User %s not authorized to read package %s') % (user, package.id)}
-    else:
-        return {'success': True}
+        # draft state indicates package is still in the creation process
+        # so we need to check we have creation rights.
+        if package.state.startswith('draft'):
+            auth = new_authz.is_authorized('package_update',
+                                           context, data_dict)
+            authorized = auth.get('success')
+        elif package.owner_org is None and package.state == 'active':
+            return {'success': True}
+        else:
+            # anyone can see a public package
+            if not package.private and package.state == 'active':
+                return {'success': True}
+            authorized = new_authz.has_user_permission_for_group_or_org(
+                package.owner_org, user, 'read')
+        if not authorized:
+            return {'success': False, 'msg': _('User %s not authorized to read package %s') % (user, package.id)}
+        else:
+            return {'success': True}
+
+    result = _package_show(context, data_dict)
+    for_edit = context.get('for_edit')
+    if result['success']:
+        locked = context.get('operation_locked')
+        if for_edit and not locked:
+            user = context.get('user')
+            user_obj = context.get('auth_user_obj')
+            if not user_obj:
+                user_obj = model.User.get(user)
+            user = user_obj.id if user_obj else user
+            package = get_package_object(context, data_dict)
+            lock_dataset(package.id, user)
+            context['operation_locked'] = True
+    return result
 
 
 @logic.auth_allow_anonymous_access
@@ -205,11 +245,10 @@ def package_create(context, data_dict=None):
 @logic.auth_allow_anonymous_access
 def package_update(context, data_dict):
     user = context.get('user')
+    package = logic_auth.get_package_object(context, data_dict)
     user_roles = user_custom_roles(context, data_dict)
     if Roles.MOD_R_DATA in user_roles:
         return {'success': True}
-    package = logic_auth.get_package_object(context, data_dict)
-
     if package.owner_org:
         # if there is an owner org then we must have update_dataset
         # permission for that organization
@@ -242,7 +281,6 @@ def package_update(context, data_dict):
                             (str(user))}
 
     return {'success': True}
-
 
 def _check_group_auth(context, data_dict):
     '''Has this user got update permission for all of the given groups?
@@ -302,6 +340,21 @@ def auth_organization_create(context, data_dict=None):
     msg = toolkit._('Organization can not be created.')
     return _no_permissions(context, msg)
 
+
+def auth_organization_update(context, data_dict):
+    group = logic_auth.get_group_object(context, data_dict)
+    user = context['user']
+    if is_data_curator(context, data_dict)['success']:
+        return {'success': True}
+    authorized = new_authz.has_user_permission_for_group_or_org(
+        group.id, user, 'update')
+    if not authorized:
+        return {'success': False,
+                'msg': _('User %s not authorized to edit organization %s') %
+                        (user, group.id)}
+    else:
+        return {'success': True}
+
 @logic.auth_allow_anonymous_access
 def auth_group_create(context, data_dict=None):
     msg = toolkit._('Group can not be created.')
@@ -320,6 +373,21 @@ def auth_app_create(context, data_dict=None):
         return {'success': False,
                 'msg': _('Only authenticated users are allowed to create applications')}
     return {'success': True}
+
+@logic.auth_allow_anonymous_access
+def tag_create(context, data_dict=None):
+    # Get the user name of the logged-in user.
+    user_name = context['user']
+    # We have the logged-in user's user name, get their user id.
+    convert_user_name_or_id_to_id = toolkit.get_converter('convert_user_name_or_id_to_id')
+    try:
+        convert_user_name_or_id_to_id(user_name, context)
+    except df.Invalid:
+        return {'success': False,
+                'msg': _('Only authenticated users are allowed to create applications')}
+    return {'success': True}
+
+
 
 @logic.auth_allow_anonymous_access
 def auth_app_edit(context, data_dict=None):
@@ -432,22 +500,63 @@ def resource_delete(context, data_dict):
     else:
         return {'success': True}
 
-
+@logic.auth_allow_anonymous_access
+def package_unlock(context, data_dict):
+    log.info('auth package_unlock')
+    return package_update(context, data_dict)
 
 def user_update_url():
     return config.get('ckan.profile_update_url', None)
+
+def package_is_locked(package_id):
+    return is_locked(package_id)
+
+def can_make_api_call(user_id):
+    return user_make_api_call(user_id)
+
+
+def _wrapper_allow_disable_api(role_name):
+    @logic.auth_allow_anonymous_access
+    def allow_disable_api(context, data_dict=None):
+        user_roles = user_custom_roles(context, data_dict)
+        log.info('user roles: %s', user_roles)
+        log.info('role name: %s', role_name)
+        if role_name in user_roles:
+            return {'success': True}
+        return {'success': False, 'msg': _('Current user does not have role data curator.')}
+    return allow_disable_api
+
+def wrapper_renew_url():
+    renew_url = config.get('ckan.cas_renew_url')
+    def _get_cas_renew_url():
+        return renew_url
+    return _get_cas_renew_url
         
 class EdemCustomPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer, inherit=False)
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IActions)
     plugins.implements(plugins.ITemplateHelpers)
+    plugins.implements(plugins.IConfigurable)
+    plugins.implements(plugins.IRoutes, inherit=True)
+    
+    def before_map(self, map):
+        map.connect('api_abort', '/api_access/abort', action='abort', controller='ckanext.edem.controllers.api_access:ApiAccessController')
+        map.connect('api_allow', '/api_access/allow', action='allow', controller='ckanext.edem.controllers.api_access:ApiAccessController')
+        return map
+    
+    def configure(self, config):
+        self.ckan_url = config.get('ckan.site_url', None)
+        self.role_allow_disable_api = config.get('ckanext.edem.user_role_allow_disable_api', "MOD-R-PO-API")
     
     def update_config(self, config):
         toolkit.add_template_directory(config, 'templates')
     
     def get_helpers(self):
-        return {'get_user_update_url' : user_update_url}
+        return {'get_user_update_url' : user_update_url,
+                'package_is_locked' : package_is_locked,
+                'user_allowed_api_call' : can_make_api_call,
+                'get_renew_url' : wrapper_renew_url()}
     
     def get_actions(self):
         return {'organization_list_for_user' : organization_list_for_user,
@@ -457,11 +566,16 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'package_update' : custom_action.package_update,
                 'resource_create' : custom_action.resource_create,
                 'resource_update' : custom_action.resource_update,
-                'probe' : custom_action.probe}
+                'probe' : custom_action.probe,
+                'package_unlock' : custom_action.package_unlock,
+                'user_make_api_call' : custom_action.user_make_api_call,
+                'resource_table_status_update' : custom_action.resource_table_status_update,
+                'resource_datastore_lately_modified' : custom_action.resource_datastore_lately_modified}
     
     def get_auth_functions(self):
         return {'group_create' : auth_group_create,
                 'organization_create' : auth_organization_create,
+                'organization_update' : auth_organization_update,
                 'package_create' : package_create,
                 'package_update' : package_update,
                 'package_delete' : package_delete,
@@ -477,6 +591,10 @@ class EdemCustomPlugin(plugins.SingletonPlugin):
                 'add_dataset_rating' : auth_add_dataset_rating,
                 'uv_usage' : auth_uv_usage,
                 'sla_management' : auth_sla_management,
-                'is_data_curator' : is_data_curator
+                'is_data_curator' : is_data_curator,
+                'package_unlock' : package_unlock,
+                'allow_disable_api' : _wrapper_allow_disable_api(self.role_allow_disable_api),
+                'resource_table_status_update' : custom_auth.resource_table_status_update,
+                'tag_create': tag_create
                 }
             

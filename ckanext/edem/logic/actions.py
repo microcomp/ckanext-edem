@@ -13,6 +13,10 @@ import ckan.lib.dictization.model_dictize as model_dictize
 import ckan.model as model
 from ckan.common import _
 
+from ckanext.edem.model.lock_db import unlock_dataset
+from ckanext.edem.model.api_access_db import user_make_api_call as db_user_make_api_call
+from ckanext.edem.model.resource_ds_table_db import set_resource_table_update, set_resource_tables_success, get_lately_modified_resources
+
 _validate = ckan.lib.navl.dictization_functions.validate
 _check_access = logic.check_access
 ValidationError = logic.ValidationError
@@ -22,10 +26,28 @@ _get_or_bust = logic.get_or_bust
 
 log = logging.getLogger(__name__)
 
+def resource_table_status_update(context, data_dict):
+    _check_access('resource_table_status_update', context, data_dict)
+    resource_id = _get_or_bust(data_dict, 'resource_id')
+    success = data_dict.get('to_file_success', False)
+    if success:
+        return set_resource_tables_success(resource_id)
+    return set_resource_table_update(resource_id)
+
+def resource_datastore_lately_modified(context, data_dict):
+    #since in hours
+    threshold = data_dict.get('threshold', 1)
+    resources = get_lately_modified_resources(threshold)
+    return resources
+
+def user_make_api_call(context, data_dict):
+    user_id = _get_or_bust(data_dict, 'user_id')
+    return db_user_make_api_call(user_id)
+
 def audit_helper(input_data_dict, op_output_dict, event):
     revision_id = op_output_dict.get('revision_id', None)
     actor_id = input_data_dict.get('actor_id', None)
-    if not actor_id:
+    if not actor_id and 'save' in dir(session):
         actor_id = session.get('ckanext-cas-actorid', None)
     if revision_id and actor_id:
         log.info('audit revision call: revision_id %s, actor_id %s', revision_id, actor_id)
@@ -57,6 +79,26 @@ def audit_helper(input_data_dict, op_output_dict, event):
                 audit_dict['object_reference'] = 'ResourceID://' + res[0].continuity_id
         log.info('dict for auditlog send: %s', audit_dict)
         _get_action('auditlog_send')(data_dict=audit_dict)
+
+def package_unlock(context, data_dict):
+    log.info('package_unlock')
+    _check_access('package_unlock', context, data_dict)
+    name_or_id = data_dict.get("id") or data_dict['name']
+    log.info('package update: %s', data_dict)
+    pkg = model.Package.get(name_or_id)
+    if pkg is None:
+        raise NotFound(_('Package was not found.'))
+    subject_id = data_dict.get('subject_id', None)
+    actor_id = data_dict.get('actor_id', None)
+    user_obj = context['auth_user_obj']
+    user = context['user']
+    if not subject_id:
+        if user_obj:
+            subject_id = user_obj.id
+        else:
+            user_obj = model.User.get(user)
+            subject_id = user_obj.id
+    unlock_dataset(pkg.id, subject_id, actor_id)
 
 def package_create(context, data_dict):
     '''Create a new dataset (package).
@@ -160,7 +202,13 @@ def package_create(context, data_dict):
                 # Old plugins do not support passing the schema so we need
                 # to ensure they still work
                 package_plugin.check_data_dict(data_dict)
-
+    
+    #we cannot modify model but we can ensure no modification via GUI/API
+    delete_keys = ['author_email', 'maintainer', 'maintainer_email']
+    for key in delete_keys:
+        if key in data_dict:
+            del data_dict[key]
+    
     data, errors = _validate(data_dict, schema, context)
     log.debug('package_create validate_errs=%r user=%s package=%s data=%r',
               errors, context.get('user'),
@@ -278,12 +326,17 @@ def package_update(context, data_dict):
                 # Old plugins do not support passing the schema so we need
                 # to ensure they still work.
                 package_plugin.check_data_dict(data_dict)
-    
+
+    #we cannot modify model but we can ensure no modification via GUI/API
+    delete_keys = ['author_email', 'maintainer', 'maintainer_email']
+    for key in delete_keys:
+        if key in pkg_dict:
+            del pkg_dict[key]
+
     data, errors = _validate(pkg_dict, schema, context)
-    log.debug('package_update validate_errs=%r user=%s package=%s data=%r',
+    log.debug('package_update validate_errs=%r user=%s package=%s',
               errors, context.get('user'),
-              context.get('package').name if context.get('package') else '',
-              data)
+              context.get('package').name if context.get('package') else '')
 
     if errors:
         model.Session.rollback()
@@ -333,6 +386,8 @@ def package_update(context, data_dict):
     if not context.get('defer_audit', None):
         audit_helper(data_dict, output, 'package_update')
     
+    _get_action('package_unlock')(context, {'id': pkg.id})
+    
     return output
 
 def resource_create(context, data_dict):
@@ -381,9 +436,7 @@ def resource_create(context, data_dict):
     '''
     model = context['model']
     user = context['user']
-    log.info('context: %s', context)
     package_id = _get_or_bust(data_dict, 'package_id')
-    data_dict.pop('package_id')
 
     pkg_dict = _get_action('package_show')(context, {'id': package_id})
 
@@ -400,6 +453,19 @@ def resource_create(context, data_dict):
         context['defer_commit'] = True
         context['use_cache'] = False
         context['defer_audit'] = True
+        
+        #owner_org = pkg_dict.get('owner_org', '')
+        #if owner_org:
+        #    org_free_space = _get_action('organization_available_space')({'ignore_auth' : True}, {'id' : owner_org})
+        #else:
+        #    log.warn('unknown package owner')
+        #    org_free_space = True
+    
+        #if not org_free_space:
+        #    raise logic.ValidationError(
+        #                {'upload': [_('There is no free space in organization')]}
+        #            )
+
         if data_dict.get('actor_id', None):
             pkg_dict['actor_id'] = data_dict['actor_id']
         _get_action('package_update')(context, pkg_dict)
@@ -410,6 +476,11 @@ def resource_create(context, data_dict):
 
     ## Get out resource_id resource from model as it will not appear in
     ## package_show until after commit
+ 
+    #max_resource_size = _get_action('package_resource_size_limit')({'ignore_auth' : True}, {'id' : package_id})
+    #log.info('resource create max size: %s', max_resource_size)
+    #upload.upload(context['package'].resources[-1].id,
+    #              max_resource_size)
     upload.upload(context['package'].resources[-1].id,
                   uploader.get_max_resource_size())
     model.repo.commit()
