@@ -3,8 +3,13 @@
 {% block content_action %}
   {{ super() }}
   {% if h.check_access('upvs_user_update', user) %}
-  	<a href="{{h.get_user_update_url()}}" target="_blank" class="btn" alt="Profile update"><i class="icon-wrench"></i> {{_('Manage')}} </a>
+  	<a href="{{h.get_user_update_url()}}" target="_blank" class="btn" alt="Profile update" title="{{ _("Change user identity settings") }}"><i class="icon-wrench"></i> {{_('Edit settings')}} </a>
+  {% endif %} 
+ 
+  {% if not h.check_access('upvs_user_update', user) and h.check_access('user_update', user) %}
+    {% link_for _('Edit settings'), controller='user', action='edit', id=user.name, class_='btn', icon='wrench' %}
   {% endif %}
+  
 {% endblock %}
 
 {% block secondary_content_inner %}

@@ -24,6 +24,10 @@ msgstr ""
 msgid "Unauthorized to unlock package %s"
 msgstr "Používateľ nemá oprávnenie odomknúť dataset %s"
 
+msgid "Change user identity settings"
+msgstr "Upravit nastavenia identity pouzivatela"
+
+
 #: ckanext/edem/dataset_controller.py:29
 msgid "Dataset not found"
 msgstr "Dataset sa nenašiel."
