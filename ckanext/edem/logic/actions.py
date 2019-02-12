@@ -267,7 +267,7 @@ def package_create(context, data_dict):
 
     output = context['id'] if return_id_only \
             else _get_action('package_show')(context, {'id':context['id']})
-    
+    _get_action('notify_package_create')(context, data_dict)
     audit_helper(data_dict, output, 'package_create')
     
     return output
@@ -306,6 +306,7 @@ def package_update(context, data_dict):
     pkg_dict = _get_action("package_show")(context, {'id' : pkg.id})
     pkg_dict.update(data_dict)
     _check_access('package_update', context, data_dict)
+    _get_action('notify_package_update')(context, data_dict)
 
     # get the schema
     package_plugin = lib_plugins.lookup_package_plugin(pkg.type)
@@ -484,10 +485,13 @@ def resource_create(context, data_dict):
     upload.upload(context['package'].resources[-1].id,
                   uploader.get_max_resource_size())
     model.repo.commit()
+    
 
     ##  Run package show again to get out actual last_resource
     pkg_dict = _get_action('package_show')(context, {'id': package_id})
     resource = pkg_dict['resources'][-1]
+    context["resource"] = model.Resource.get(resource["id"])
+    _get_action('notify_resource_create')(context, data_dict)
     audit_helper(data_dict, resource, 'resource_create')
     return resource
 
@@ -512,14 +516,16 @@ def resource_update(context, data_dict):
     log.info('context: %s', context)
     resource = model.Resource.get(id)
     context["resource"] = resource
+    
     log.info('resource update: %s', data_dict)
     if not resource:
         logging.error('Could not find resource ' + id)
         raise NotFound(_('Resource was not found.'))
 
     _check_access('resource_update', context, data_dict)
+    _get_action('notify_resource_update')(context, data_dict)
     del context["resource"]
-
+    
     package_id = resource.resource_group.package.id
     pkg_dict = _get_action('package_show')(context, {'id': package_id})
 
